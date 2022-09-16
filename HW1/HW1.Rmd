@@ -34,16 +34,11 @@ library(DescTools) #contains method to  compute a 95% confidence interval for Sp
 
 ```{r}
 
-# Had some issues importing file as an excel document
-# saved file as a CSV, always no problem importing that into RStudio 
-# visual inspections suggests manual transfer of data went fine 
-# Imported "Data_cleaned_for_analysis" tab, that seems to be the right one 
-
 e_cig <- read_xlsx("/Users/denisostroushko/Desktop/MS Fall 2022/Puhb 7405/Data Sets/E-CIG-1.xlsx", 
                    sheet = "Data_cleaned_for_analysis")
 ```
 
-```{R data-set-summary, include = F}
+```{R data-set-summary}
 
 n_rows <- nrow(e_cig)
 
@@ -63,7 +58,7 @@ In this data we have:
 
 -   `r smokers_obs` observations for `r n_smokers` unique E-cig smokers
 
--   `r non_smoker_obs` observations for `r n_not_smokers` unique E-cig
+-   `r non_smoker_obs` observations for `r n_not_smokers` unique non-smokers
     smokers
 
 The goal of the study is to compare the level of two biomarkers between
@@ -109,12 +104,12 @@ sum_tab %>%
   kable_styling(bootstrap_options = "striped", full_width = F, position = "center")
 ```
 
-We can see that the average CEMA measurement is much high for a group of
+We can see that the average CEMA measurement is higher for a group of
 Smokers. However, the difference in median values is even greater.
 Standard deviation is quite high in these samples, while sample size
 brings the standard error down.
 
-The difference in mean and median values implies that the distribution
+The proportional difference in mean and median values implies that the distribution
 could be skewed. We can examine distribution shape before conducting the
 test.
 
@@ -141,13 +136,15 @@ grid.arrange(total, by_group, nrow = 1)
 
 While we can see that the distributions of two samples are heavily
 skewed, and has a lot of outliers. We would want to transform this
-distribution to the logarithmic scale to achieve 'normal shape', t test
+distribution to the logarithmic scale to achieve 'normal shape', however, the t-test
 is robust, so we can conduct it anyway.
 
 We define $\overline X_1$ = mean CEMA for smokers and $\overline X_2$ =
 mean CEMA for non-smokers.
 
-Then, the null hypothesis is: $H_0: \overline X_1 = \overline X_2$ And
+Then, the null hypothesis is: $H_0: \overline X_1 = \overline X_2$ 
+
+And
 the alternative hypothesis is: $H_a: \overline X_1 \neq \overline X_2$
 
 Results of T-test are given below:
@@ -228,7 +225,7 @@ too.
 Once more, let's examine the shape and visual properties of distribution
 before the test.
 
-```{r, fig.width=9}
+```{r, fig.width=9, warning=F, message=F}
 total <- 
   ggplot(data = e_cig, 
        aes(x = HOP1)) + geom_histogram(binwidth = .05, color = "black", fill = "white") + 
@@ -251,13 +248,15 @@ grid.arrange(total, by_group, nrow = 1)
 
 While we can see that the distributions of two samples are heavily
 skewed, and has a lot of outliers. We would want to transform this
-distribution to the logarithmic scale to achieve 'normal shape', t test
+distribution to the logarithmic scale to achieve 'normal shape', however, the t-test
 is robust, so we can conduct it anyway.
 
 We define $\overline X_1$ = mean HOP1 for smokers and $\overline X_2$ =
 mean HOP1 for non-smokers.
 
-Then, the null hypothesis is: $H_0: \overline X_1 = \overline X_2$ And
+Then, the null hypothesis is: $H_0: \overline X_1 = \overline X_2$ 
+
+And
 the alternative hypothesis is: $H_a: \overline X_1 \neq \overline X_2$
 
 Results of T-test are given below, due to the scale of these
@@ -312,14 +311,16 @@ skewed and has a lot of extreme values. Perhaps, it had an impact on the
 t-test. I do not expect that we will see a meaningful change in result
 for HOP1 comparison. Summary statistics suggest that the biomarker is
 distributed almost identically for smokers and non-smokers. However, we
-saw the the mean CEMA levels were actually quite different, so applying
+saw that the mean CEMA levels were actually quite different, so applying
 a non-parametric test to these data can have an effect on our results.
 
 Wilcoxon test allows us to test for difference in median values. We
 begin our tests by comparing median values of CEMA levels.
 
 We define $M(X_1)$ = median CEMA levels for smokers and $M(X_2)$ =
-median CEMA levels for non-smokers. Therefore, the null hypothesis is
+median CEMA levels for non-smokers. 
+
+Therefore, the null hypothesis is
 $H_0: M(X_1) = M(X_2)$
 
 And the alternative hypothesis is $H_a: M(X_1) \neq M(X_2)$
@@ -384,7 +385,9 @@ needs to be taken in context with other predictors and biomarkers.
 ### Test of median HOP1 levels
 
 We define $M(X_1)$ = median HOP1 levels for smokers and $M(X_2)$ =
-median HOP1 levels for non-smokers. Therefore, the null hypothesis is
+median HOP1 levels for non-smokers. 
+
+Therefore, the null hypothesis is
 $H_0: M(X_1) = M(X_2)$
 
 And the alternative hypothesis is $H_a: M(X_1) \neq M(X_2)$
@@ -437,7 +440,7 @@ Test results summary and interpretation:
     and the confidence interval contained mostly positive values.
     However, the confidence interval did include 0. These results
     suggest that the median levels of HOP1 could be different between
-    smokers and non-smokers. However, more data is needed gather more
+    smokers and non-smokers. However, more data is needed to gather more
     evidence in order to reject the null hypothesis.
 
 ## (3) Confidence intervals
@@ -509,7 +512,7 @@ estimate for difference in means was not statistically significant,
 because the p-value was above 0.05. Confidence intervals includes 0,
 which is another piece of evidence in favor of null hypothesis.
 
-#3.1
+# 3.1
 
 ```{r, include= F}
 infant <- read_xls("/Users/denisostroushko/Desktop/MS Fall 2022/Puhb 7405/Data Sets/Infants.xls")
@@ -533,14 +536,21 @@ ggplot(data = infant,
   xlab("Number of Gestional Weeks") + 
   ylab("Infant Birth Weight") + 
   
-  ggtitle(paste("Correlation Between Gestational Weeks and \n Infant Birth Weight: correlation coefficient ", round(cor(
-    infant$gest_weeks, infant$birthwght
-  ), 3)))
+  ggtitle(
+    paste("Correlation Between Gestational Weeks and \
+                Infant Birth Weight: correlation coefficient ", 
+                round(
+                  cor(
+                    infant$gest_weeks, infant$birthwght
+                      )
+                  ,3)
+                )
+          )
 
 ```
 
-The relationship between gestional weeks and birth weight of infant have a linear relationship. Using LOESS smooth averaged trend line 
-(in teal) test for any non-linear curvature in the data. However, it is clear that LOESS smooth line is very close to a fitted trend line 
+The relationship between gestational weeks and birth weight of infant have a linear relationship. Using LOESS smooth averaged trend line 
+(in teal) we look for any non-linear curvature in the data. However, it is clear that LOESS smooth line is very close to a fitted trend line 
 (in red). Therefore, we have visual conformation that the relationship is indeed linear. 
 
 We can see that the data is distribtuted in a fairly narrow cluster of point around the ends of the fitted line, and with more variance 
@@ -580,7 +590,7 @@ Test results:
 
 * Test statistic is `r stat`
 
-* Estimated Pearson's correlation coefficient is `r cor_est` with a `r cor_ci` %95 confidence interval
+* Estimated Pearson's correlation coefficient is `r cor_est` with a `r cor_ci` 95% confidence interval
 
 * P-value is `r p_val` on `r df` degrees of freedom
 
