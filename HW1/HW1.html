@@ -11,7 +11,7 @@
 
 <meta name="author" content="Denis Ostroushko" />
 
-<meta name="date" content="2022-09-16" />
+<meta name="date" content="2022-09-20" />
 
 <title>Homework 1</title>
 
@@ -589,7 +589,7 @@ pre code {
 
 <h1 class="title toc-ignore">Homework 1</h1>
 <h4 class="author">Denis Ostroushko</h4>
-<h4 class="date">2022-09-16</h4>
+<h4 class="date">2022-09-20</h4>
 
 </div>
 
@@ -650,7 +650,16 @@ standard error using s.d. and sample size.</p>
               sd = round(sd(CEMA), 2), 
               se = round(sd(CEMA)/sqrt(n),2))
 
+## save estimates that we need for calculation of CI by hand down below 
+
+cema_smoke_sd &lt;- sum_tab$sd[1]
+cema_nonsmoke_sd &lt;- sum_tab$sd[2]
+
+cema_smoke_n &lt;- sum_tab$n[1]
+cema_nonsmoke_n &lt;- sum_tab$n[2]
+
 colnames(sum_tab) &lt;- c(&quot;Group&quot;, &quot;N&quot;, &quot;Mean CEMA&quot;,&quot;Median CEMA&quot;, &quot;Standard Deviation&quot;, &quot;Mean Standard Error&quot;)
+
 
 sum_tab %&gt;% 
   kbl(align = c(rep(&#39;c&#39;, 4))) %&gt;% 
@@ -724,7 +733,8 @@ Non-smoker
 <p>We can see that the average CEMA measurement is higher for a group of
 Smokers. However, the difference in median values is even greater.
 Standard deviation is quite high in these samples, while sample size
-brings the standard error down.</p>
+brings the standard error down. The two samples do not have equal
+variance, which violates one of t-test’s assumptions.</p>
 <p>The proportional difference in mean and median values implies that
 the distribution could be skewed. We can examine distribution shape
 before conducting the test.</p>
@@ -815,6 +825,14 @@ below shows all statistics of interest.</p>
               sd = round(sd(HOP1, na.rm = T), 2), 
               se = round(sd(HOP1, na.rm = T)/
                            (n() - sum(is.na(HOP1))) ,2))
+
+## save estimates that we need for calculation of CI by hand down below 
+
+hop_smoke_sd &lt;- sum_tab$sd[1]
+hop_nonsmoke_sd &lt;- sum_tab$sd[2]
+
+hop_smoke_n &lt;- sum_tab$available[1]
+hop_nonsmoke_n &lt;- sum_tab$available[2]
 
 colnames(sum_tab) &lt;- c(&quot;Group&quot;, &quot;N for Analysis&quot;,&quot;N Missing&quot;, &quot;Mean HOP1&quot;, &quot;Median HOP1&quot;,&quot;Standard Deviation&quot;, &quot;Mean Standard Error&quot;)
 
@@ -1121,12 +1139,32 @@ median levels of HOP1 could be different between smokers and
 non-smokers. However, more data is needed to gather more evidence in
 order to reject the null hypothesis.</p></li>
 </ul>
+<p>Overall, applying Wilcoxon tests to these two samples shows one case
+where non-parametric tests are more applicable than tests. He observe
+that we can extract more useful information using non-parametric tests
+when working with observational data. Such data are usually prone to
+variance that is outside of our control, and is different in groups that
+we wish to compare. Moreover, extreme values and outliers also make
+application of t-test difficult.</p>
 </div>
 </div>
 <div id="confidence-intervals" class="section level2">
 <h2>(3) Confidence intervals</h2>
+<p>In the previous section I have provided confidence intervals in the
+results interpretation section. In this section we validate those
+results by plugging estimates from the data into the formula.</p>
 <p>First, we will have confidence intervals for comparison of average
 levels of CEMA</p>
+<p>We need samples sizes, standard deviations of the two samples, and a
+coefficient for our desired level of confidence, which is 1.96.</p>
+<p>The formula is given below:</p>
+<p>Standard Error of difference = <span class="math inline">\(\sqrt{\frac{SD_{smokers}^2}{N_{smokers}} +
+\frac{SD_{non-smokers}^2}{N_{non-smokers}}}\)</span></p>
+<pre class="r"><code>std_err_diff &lt;- sqrt( (cema_smoke_sd^2/cema_smoke_n + cema_nonsmoke_sd^2/cema_nonsmoke_n) )</code></pre>
+<p>Resulting standard error for the difference estimate is 2.2000759</p>
+<p>The upper bound is 2.68 + 1.96 * 2.2000759 = 6.9921488</p>
+<p>The lower bound is 2.68 - 1.96 * 2.2000759 = -1.6321488</p>
+<p>Then we need to weight this result by</p>
 <ul>
 <li>Estimated difference between sample averages is 2.68. 95% Confidence
 interval: ( -1.65 , 7.02 ).</li>
@@ -1136,9 +1174,16 @@ estimate for difference in means was not statistically significant,
 because the p-value was above 0.05. Confidence intervals includes 0,
 which is another piece of evidence in favor of null hypothesis.</p>
 <p>Now we examine confidence interval for HOP1 difference</p>
+<p>Similarly, we calculate confidence interval using values from the
+data</p>
+<pre class="r"><code>std_err_diff &lt;- sqrt( (hop_smoke_sd^2/hop_smoke_n + hop_nonsmoke_sd^2/hop_nonsmoke_n) )</code></pre>
+<p>Resulting standard error for the difference estimate is 0.0813453</p>
+<p>The upper bound is 0.02 + 1.96 * 0.0813453 = 0.1794368</p>
+<p>The lower bound is 0.02 - 1.96 * 0.0813453 = -0.1394368</p>
 <ul>
 <li>Estimated difference between sample averages is 0.02. 95% Confidence
-interval: ( -0.14 , 0.18 ).</li>
+interval: ( -0.14 , 0.18 ). Note that there are minor discrepancies due
+to rounding.</li>
 </ul>
 <p>This supports our results obtained in the first section. We saw the
 estimate for difference in means was not statistically significant,
@@ -1229,6 +1274,25 @@ correlated.</p></li>
 </div>
 <div id="confidence-interval-for-test-of-independence" class="section level2">
 <h2>(3) Confidence Interval for Test of Independence</h2>
+<p>In this section we calculate a confidence interval for Pearson’s
+correlation coefficient using data and formulas.</p>
+<p>Step one is to obtain a coefficient from Ficher Transformation</p>
+<pre class="r"><code>z = 1/2 * log((1+cor_est)/(1-cor_est) )</code></pre>
+<p>z transformation = <span class="math inline">\(\frac{1}{2} \times
+ln(\frac{1+correlation estimate}{1 - correlation estimate})\)</span> =
+0.7241933</p>
+<p>Step two is to obtain standard error</p>
+<pre class="r"><code>se_z = sqrt(1/(nrow(infant) - 3))</code></pre>
+<p>standard error = <span class="math inline">\(\sqrt{\frac{1}{N -
+3}}\)</span> = 0.1015346</p>
+<p>So, the raw upper bound is 0.7241933 + 1.96 * 0.1015346 =
+0.9232011</p>
+<p>So, the raw lower bound is 0.7241933 - 1.96 * 0.1015346 =
+0.5251854</p>
+<p>The last step is to transform back from Ficher Z back to the original
+scale</p>
+<p>original scale lower or upper bound = <span class="math inline">\(\frac{e^{2 * bound} - 1}{e^{2 * bound} +
+1}\)</span>, which results in (0.4816922, 0.7274083)</p>
 <p>Confidence interval is ( 0.4817 , 0.7274 ), it does not include 0 and
 gives more evidence in favor of rejetion of null hypothesis</p>
 <div id="spearmans-rho-correlation-coefficient" class="section level3">

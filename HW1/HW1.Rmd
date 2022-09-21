@@ -97,7 +97,16 @@ sum_tab <-
               sd = round(sd(CEMA), 2), 
               se = round(sd(CEMA)/sqrt(n),2))
 
+## save estimates that we need for calculation of CI by hand down below 
+
+cema_smoke_sd <- sum_tab$sd[1]
+cema_nonsmoke_sd <- sum_tab$sd[2]
+
+cema_smoke_n <- sum_tab$n[1]
+cema_nonsmoke_n <- sum_tab$n[2]
+
 colnames(sum_tab) <- c("Group", "N", "Mean CEMA","Median CEMA", "Standard Deviation", "Mean Standard Error")
+
 
 sum_tab %>% 
   kbl(align = c(rep('c', 4))) %>% 
@@ -107,7 +116,7 @@ sum_tab %>%
 We can see that the average CEMA measurement is higher for a group of
 Smokers. However, the difference in median values is even greater.
 Standard deviation is quite high in these samples, while sample size
-brings the standard error down.
+brings the standard error down. The two samples do not have equal variance, which violates one of t-test's assumptions. 
 
 The proportional difference in mean and median values implies that the distribution
 could be skewed. We can examine distribution shape before conducting the
@@ -205,6 +214,14 @@ sum_tab <-
               sd = round(sd(HOP1, na.rm = T), 2), 
               se = round(sd(HOP1, na.rm = T)/
                            (n() - sum(is.na(HOP1))) ,2))
+
+## save estimates that we need for calculation of CI by hand down below 
+
+hop_smoke_sd <- sum_tab$sd[1]
+hop_nonsmoke_sd <- sum_tab$sd[2]
+
+hop_smoke_n <- sum_tab$available[1]
+hop_nonsmoke_n <- sum_tab$available[2]
 
 colnames(sum_tab) <- c("Group", "N for Analysis","N Missing", "Mean HOP1", "Median HOP1","Standard Deviation", "Mean Standard Error")
 
@@ -443,7 +460,15 @@ Test results summary and interpretation:
     smokers and non-smokers. However, more data is needed to gather more
     evidence in order to reject the null hypothesis.
 
+Overall, applying Wilcoxon tests to these two samples shows one case where non-parametric tests are more applicable than tests. 
+He observe that we can extract more useful information using non-parametric tests when working with observational data. 
+Such data are usually prone to variance that is outside of our control, and is different in groups that we wish to compare. 
+Moreover, extreme values and outliers also make application of t-test difficult. 
+
 ## (3) Confidence intervals
+
+In the previous section I have provided confidence intervals in the results interpretation section. In this section we validate 
+those results by plugging estimates from the data into the formula. 
 
 First, we will have confidence intervals for comparison of average
 levels of CEMA
@@ -470,6 +495,25 @@ est_n_sm <- round(t_test_res$estimate[2], 2)
 est_diff <- round(t_test_res$estimate[1] - t_test_res$estimate[2], 2)
 
 ```
+
+We need samples sizes, standard deviations of the two samples, and a coefficient for our desired level of confidence, which is 1.96.
+
+The formula is given below: 
+
+Standard Error of difference = $\sqrt{\frac{SD_{smokers}^2}{N_{smokers}} + \frac{SD_{non-smokers}^2}{N_{non-smokers}}}$
+
+```{r}
+std_err_diff <- sqrt( (cema_smoke_sd^2/cema_smoke_n + cema_nonsmoke_sd^2/cema_nonsmoke_n) )
+```
+
+Resulting standard error for the difference estimate is `r std_err_diff`
+
+The upper bound is `r est_diff` + 1.96 * `r std_err_diff` = `r est_diff + 1.96 * std_err_diff`
+
+The lower bound is `r est_diff` - 1.96 * `r std_err_diff` = `r est_diff - 1.96 * std_err_diff`
+
+
+Then we need to weight this result by 
 
 -   Estimated difference between sample averages is `r est_diff`. 95%
     Confidence interval: `r conf_int`.
@@ -504,8 +548,20 @@ est_diff <- round(t_test_res$estimate[1] - t_test_res$estimate[2], 2)
 
 ```
 
+Similarly, we calculate confidence interval using values from the data 
+
+```{r}
+std_err_diff <- sqrt( (hop_smoke_sd^2/hop_smoke_n + hop_nonsmoke_sd^2/hop_nonsmoke_n) )
+```
+
+Resulting standard error for the difference estimate is `r std_err_diff`
+
+The upper bound is `r est_diff` + 1.96 * `r std_err_diff` = `r est_diff + 1.96 * std_err_diff`
+
+The lower bound is `r est_diff` - 1.96 * `r std_err_diff` = `r est_diff - 1.96 * std_err_diff`
+
 -   Estimated difference between sample averages is `r est_diff`. 95%
-    Confidence interval: `r conf_int`.
+    Confidence interval: `r conf_int`. Note that there are minor discrepancies due to rounding.  
 
 This supports our results obtained in the first section. We saw the
 estimate for difference in means was not statistically significant,
@@ -599,6 +655,34 @@ to reject null hypothesis and conclude that the number of gestational weeks and 
 correlated. 
 
 ## (3) Confidence Interval for Test of Independence
+
+In this section we calculate a confidence interval for Pearson's correlation coefficient using data and formulas. 
+
+Step one is to obtain a coefficient from Ficher Transformation
+
+```{r}
+z = 1/2 * log((1+cor_est)/(1-cor_est) )
+```
+
+z transformation = $\frac{1}{2} \times ln(\frac{1+correlation estimate}{1 - correlation estimate})$ = `r z`
+
+Step two is to obtain standard error 
+
+```{r}
+se_z = sqrt(1/(nrow(infant) - 3))
+```
+
+standard error = $\sqrt{\frac{1}{N - 3}}$ = `r se_z`
+
+So, the raw upper bound is `r z` + 1.96 * `r se_z` = `r z + 1.96 * se_z`
+
+So, the raw lower bound is `r z` - 1.96 * `r se_z` = `r z - 1.96 * se_z`
+
+The last step is to transform back from Ficher Z back to the original scale
+
+original scale lower or upper bound = $\frac{e^{2 * bound} - 1}{e^{2 * bound} + 1}$, which results in 
+(`r (exp(2 * (z - 1.96 * se_z))-1)/(exp(2 * (z - 1.96 * se_z))+1)`, 
+  `r (exp(2 * (z + 1.96 * se_z))-1)/(exp(2 * (z + 1.96 * se_z))+1)`)
 
 Confidence interval is `r cor_ci`, it does not include 0 and gives more evidence in favor of rejetion of null hypothesis
 
