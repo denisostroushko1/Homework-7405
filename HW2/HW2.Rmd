@@ -1,0 +1,279 @@
+---
+title: "Homework 2"
+author: "Denis Ostroushko"
+date: '`r as.Date(Sys.Date())`'
+output: html_document
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+<!--
+Set up packages and fucntions 
+--> 
+
+```{R, warning = F, message = F}
+
+# load packages 
+
+library(tidyverse)
+library(readxl)
+
+```
+
+```{r read initial data 4_2, message=F, warning=F}
+
+vc_data <- 
+  read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/VitalCapacity.xlsx")
+vc_data <- na.omit(vc_data)
+
+colnames(vc_data) <- c("age",  "xvc100")
+
+```
+
+# 4.2
+
+<!-- 
+
+Latex tips: use single dollar sign in line to make equations and greek letters 
+use double dollar sign to make equations centered and make them stand out in the rendered output 
+
+--> 
+
+## 4.2 - A
+
+First need $b_1$, estimate for $\beta_1$
+Formula:
+
+$$ \Large b_1 = \frac{\Sigma (X_i - \bar X)(Y_i - \bar Y)}{\Sigma (X_i - \bar X)^2} $$
+
+Code is below 
+
+```{r b1_4_2_estimate}
+
+b1 <- 
+  sum(
+    (vc_data$age - mean(vc_data$age)) * #(x_i - x_bar)
+        (vc_data$xvc100 -mean(vc_data$xvc100)) #(y_i - y_bar)
+    ) / 
+  sum((vc_data$age - mean(vc_data$age))^2) # squared error of X
+
+```
+
+Estimate for $\beta_1$ = $\hat \beta_1$ = $b_1$ = `r b1`
+
+Now we can obtain $b_0$
+
+Formula: 
+
+$$\Large \frac{1}{n} (\Sigma Y_i - b_1 \times \Sigma X_i) = \bar Y - b_1 \times \bar X$$
+
+Code to estimate is below: 
+
+```{r b_0_4_2_estimate}
+
+b0 <- 
+  mean(vc_data$xvc100) - b1 * mean(vc_data$age)
+
+```
+
+Estimate for $\beta_0$ = $\hat \beta_0$ = $b_0$ = `r b0`
+
+We can check our answer by creating a linear model: 
+
+```{R 4_2_a_linear model }
+
+lm_4_2_a <- lm(xvc100 ~ age, data = vc_data)
+
+sum <- summary(lm_4_2_a)
+
+sum
+
+b0_model <- sum$coefficients[1]
+b1_model <- sum$coefficients[2]
+
+```
+
+From the summary of the model we can see that $b_0$ = `r b0_model` and $b_1$ = `r b1_model`
+
+Difference in two estimates for $b_1$ is `r round(b1 - b1_model,4)`, rounded to 4 decimal points.
+Difference in two estimates for $b_0$ is `r round(b0 - b0_model,4)`, rounded to 4 decimal points.
+
+## 4.2 - B
+
+```{r plot, message = F, warning = F}
+
+#save estimated data - Y_hat from the mdoel - to the data set for convinient plotting 
+
+vc_data$y_hat <- predict(lm_4_2_a, vc_data)
+
+min_round_bound <- round(log10(min(vc_data$xvc100))) * 10^round(log10(min(vc_data$xvc100)))
+max_round_bound <- round(log10(max(vc_data$xvc100))) * 10^round(log10(max(vc_data$xvc100)))
+
+ggplot(
+  data = vc_data, 
+  aes(x = age, y = xvc100)
+) + 
+  geom_point() + 
+  geom_line(data = vc_data, aes(x = age, y = y_hat, colour = "Estimated Regression Line"), size = 1) + 
+  geom_smooth(aes(colour = "Smooth Trend Line"), se = F) + 
+  
+  scale_color_manual(name = "Line Types", values = c("Estimated Regression Line" = "red", "Smooth Trend Line" = "blue")) + 
+  
+  scale_y_continuous(breaks = seq(from = min_round_bound, to = max_round_bound, by = 25)) + 
+  ylab("Lung Vital Capacity") + 
+  xlab("Age") + 
+  ggtitle("Relationship Between Age in Years and Lung Capacity") + 
+  theme_minimal()
+
+```
+
+## 4.2 - C
+
+to obtain this estimate we simply need to plug in the value of $X = 35$ into our regression equation
+
+Estimated value is `r b0 + b1*35`
+
+We can also obtain a confidence interval for the mean response level when $X_h = 35$
+
+First, we want a standard error, so we need MSE (Mean Squared Error, obtain from residuals), deviation of $X_h$ from the mean, $\bar X$, and total variance of $X$
+
+We will also obtain a coefficient from the t distribution, at 95% confidence level and `r nrow(vc_data) - 2` degrees of freedom
+
+```{r}
+
+## se^2 formula: mse (1/n + (x-x_var)^2 / ssx)
+
+X_h <- 35 # desired X level for prediction 
+
+df <- nrow(vc_data - 2) # degrees of freedom for studentized T distribution 
+
+mse <- sum((vc_data$xvc100 - vc_data$y_hat)^2)/df # mean squared error term from Y -> residals -> ovserved minus predicted 
+ssx <- sum((vc_data$age - mean(vc_data$age))^2) # sum of squared X deviations 
+
+se_sq <- mse * (1/nrow(vc_data) + (X_h - mean(vc_data$age))^2 / ssx ) #standard error squared 
+
+t_coef <- 
+  abs(
+    qt(
+      1-.05/2, 
+      nrow(vc_data) - 2
+      )
+  ) # coefficient T 
+
+est <- b0 + b1*X_h # point estimate of E[Y_h]
+
+ci_low <- est - sqrt(se_sq) * t_coef # lower bound of confidence interval 
+ci_high <- est + sqrt(se_sq) * t_coef # upper bound of confidence interval 
+```
+
+```{r}
+# predict mean response using R function 
+
+predict(lm_4_2_a, data.frame(age = X_h), interval = "confidence")
+```
+
+
+
+## 4.2 - D
+
+Mean response -> average increase in response - VC function, when X - age - is increased by 1 unit, i.e. when person gets one year odler 
+When age increases by 1 year then VC decreases by `r abs(b1)` . 
+Since the relationship is linear, when a person gets 10 years older, VC descreases by `r 10 * abs(b1)`
+
+# 5.3
+
+```{r}
+cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
+
+original_names <- colnames(cig)
+
+colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
+
+```
+
+## 5.3 - A
+
+We need to estimate average response when $X_h = 30$, 30 cigarettes per day. 
+
+We showed how to estimate model parameters, average reposnse level and confidence interval by hand in 4.2, so we will use R functions to 
+get estimates for interpretations 
+
+```{r}
+lm_5_3 <- lm(cotinine ~ cpd, data = cig)
+summary(lm_5_3)
+
+predict(lm_5_3, data.frame(cpd = 30), interval = "confidence")
+
+b1 <- summary(lm_5_3)$coefficients[2]
+b0 <- summary(lm_5_3)$coefficients[1]
+```
+
+## 5.3 - B 
+
+Here we need a new method of getting a confidence interval. Begin by derviing a standard error for a signle prediction 
+
+$$se(Y_{h (new)})^2 = MSE * [1 + \frac{1}{n} + \frac{(X_{h (new)} - \bar X)^2}{\Sigma (X_i - \bar X)^2}]$$
+
+```{r}
+
+X_h <- 30
+
+n <- nrow(cig)
+
+mse <- sum(lm_5_3$residuals^2)/(n-2)
+
+ssx <- sum( (cig$cpd - mean(cig$cpd))^2 )
+
+se_y_h_new <- 
+  sqrt(
+    mse * (1 + 1/n + (X_h - mean(cig$cpd))^2 / ssx)
+  )
+
+t_coef <- qt(1 - .05/2, n - 2)
+
+ci_lower <- (b1 * X_h + b0) - se_y_h_new * t_coef
+ci_upper <- (b1 * X_h + b0) + se_y_h_new * t_coef
+```
+
+```{r}
+ci_lower 
+ci_upper 
+
+predict(lm_5_3, data.frame(cpd = 30), interval = "prediction")
+
+```
+
+## 5.3 - C
+
+```{r}
+cig$resid <- lm_5_3$residuals
+
+ggplot(data = cig, 
+       aes(x = cpd, y = resid)) + 
+  geom_point() + 
+  geom_smooth(aes(color = "Smooth Trend Line"), se = F, size = 1) + 
+  stat_smooth(aes(color = "Regression Line") , se = F,  size = 1, method = "lm") + 
+  
+  xlab("Cigarettes per Day") + 
+  ylab("Residuals ") + 
+  ggtitle( "Plot of X values against Residuals "
+  ) + 
+  
+  scale_color_manual(name = "Line Types", values = c("Smooth Trend Line" = "blue", "Regression Line" = "red"))
+```
+
+```{r}
+summary(cig$resid)
+```
+
+average residual value: `r mean(cig$resid)`
+
+## 5.3 - D
+
+```{r}
+anova(lm_5_3)
+
+f_cutoff <- qf(1-0.05, 1, nrow(cig) - 2)
+f_cutoff
+```
