@@ -18,6 +18,8 @@ Set up packages and fucntions
 
 library(tidyverse)
 library(readxl)
+library(gridExtra)
+library(kableExtra)
 
 ```
 
@@ -33,6 +35,9 @@ colnames(vc_data) <- c("age",  "xvc100")
 
 # 4.2
 
+In this section we need to establish the relationship between Age and Vital Lung Capacity for men working in the cadmium industry, but not exposed to 
+the cadmium fumes. We assign X variable to be Age, and Y variable to be Lung Capacity. 
+
 <!-- 
 
 Latex tips: use single dollar sign in line to make equations and greek letters 
@@ -40,14 +45,93 @@ use double dollar sign to make equations centered and make them stand out in the
 
 --> 
 
-## 4.2 - A
+### 4.2 - A
 
-First need $b_1$, estimate for $\beta_1$
-Formula:
+To establish connection between age and lung capacity we need to develop a regression model with estimates of $\beta_0$ and $\beta_1$. 
+First, let's look at the distribution of X and Y. 
+
+```{r, warning = F, message = F}
+
+age_plot <- 
+  ggplot(
+    data = vc_data, 
+    aes(x = age)
+  ) + geom_histogram() + 
+  
+  scale_x_continuous(
+    breaks = seq(
+      from = round(log10(min(vc_data$age))) * 10^round(log10(min(vc_data$age))),
+      to = round(log10(max(vc_data$age))) * 10^round(log10(max(vc_data$age))), 
+      by = 5
+    )
+  ) + 
+  
+  theme_minimal() + 
+  xlab("Age") + 
+  ylab("Count") + 
+  ggtitle("Distribution of Age")
+  
+xvc_plot <- 
+  ggplot(
+    data = vc_data, 
+    aes(x = xvc100)
+  ) + geom_histogram() + 
+  
+  scale_x_continuous(
+    breaks = seq(
+      from = round(log10(min(vc_data$xvc100))) * 10^round(log10(min(vc_data$xvc100))),
+      to = round(log10(max(vc_data$xvc100))) * 10^round(log10(max(vc_data$xvc100))), 
+      by = 50
+    )
+  ) + 
+  
+  theme_minimal() + 
+  xlab("Lung Capacity") + 
+  ylab("Count") + 
+  ggtitle("Distribution of Lung Capacity")
+
+grid.arrange(age_plot, xvc_plot, nrow = 1)
+```
+
+Both X and Y have a distribution with a central tendency. Most values seem to be centered around the mean and median of distributions. 
+So, we will expect confidence and prediction intervals for be narrower near average age and lung capacity values, and wider towards the end of the 
+distribution. 
+
+We also want to consider the scope of the model. Minimum age in this sample is `r min(vc_data$age)` while maximum age is `r max(vc_data$age)`. 
+Therefore, trying to predict lung capacity outside this range can result in predictions with high margin of error. Moreover, we do not know 
+the relationship between lung capacity and age outside of this range, so we will avoid extrapolation. 
+
+Finally, we will look at the mean, median, and standard deviation for the two variables. These statistics will give us slightly more 
+insight into the confidence and prediction intervals behavior.
+
+```{r}
+
+sum_table <- 
+  data.frame(
+    names = c("Age", "Lung Capacity"), 
+    N = c(length(!is.na(vc_data$age)), length(!is.na(vc_data$xvc100))), 
+    mean = c(mean(vc_data$age, na.rm = T), mean(vc_data$xvc100, na.rm = T)), 
+    median = c(median(vc_data$age, na.rm = T), median(vc_data$xvc100, na.rm = T)), 
+    sd = c(sd(vc_data$age,na.rm = T), sd(vc_data$xvc100, na.rm = T))
+  )
+
+colnames(sum_table) <- c("Variable", "N for Analysis", "Mean", "Median", "Standard Deviation")
+
+sum_table %>% 
+  kbl(align = c(rep('c', length(sum_table)))) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center' )
+```
+
+We do not have missing values, standard deviation is reasonable for both variables in relation to the average values. Mean and median are also 
+pretty close to each other for both variables. 
+
+Finally, we can estimate $\beta_0$ and $\beta_1$, we call estimates $b_0$ and $b_1$ respectively. 
+
+First need $b_1$, because the value of $b_0$ depends of $b_1$, and we will use this formula Formula:
 
 $$ \Large b_1 = \frac{\Sigma (X_i - \bar X)(Y_i - \bar Y)}{\Sigma (X_i - \bar X)^2} $$
 
-Code is below 
+We obtain values from the data set and calculate the value of $b_1$ below: 
 
 ```{r b1_4_2_estimate}
 
@@ -68,7 +152,7 @@ Formula:
 
 $$\Large \frac{1}{n} (\Sigma Y_i - b_1 \times \Sigma X_i) = \bar Y - b_1 \times \bar X$$
 
-Code to estimate is below: 
+Estimation code is given below
 
 ```{r b_0_4_2_estimate}
 
@@ -79,7 +163,7 @@ b0 <-
 
 Estimate for $\beta_0$ = $\hat \beta_0$ = $b_0$ = `r b0`
 
-We can check our answer by creating a linear model: 
+To be sure that our calcualtion went right, we can create a linear model in R, and extract estimates from it. Model output is given below: 
 
 ```{R 4_2_a_linear model }
 
@@ -99,7 +183,11 @@ From the summary of the model we can see that $b_0$ = `r b0_model` and $b_1$ = `
 Difference in two estimates for $b_1$ is `r round(b1 - b1_model,4)`, rounded to 4 decimal points.
 Difference in two estimates for $b_0$ is `r round(b0 - b0_model,4)`, rounded to 4 decimal points.
 
-## 4.2 - B
+We have successfully calculated the two estimates we need. 
+
+### 4.2 - B
+
+In order to plot regression line we save predicted values from the model to the data frame.  
 
 ```{r plot, message = F, warning = F}
 
@@ -115,7 +203,7 @@ ggplot(
   aes(x = age, y = xvc100)
 ) + 
   geom_point() + 
-  geom_line(data = vc_data, aes(x = age, y = y_hat, colour = "Estimated Regression Line"), size = 1) + 
+  geom_smooth(aes(colour = "Estimated Regression Line"), method = "lm", size = 1, se = T) + 
   geom_smooth(aes(colour = "Smooth Trend Line"), se = F) + 
   
   scale_color_manual(name = "Line Types", values = c("Estimated Regression Line" = "red", "Smooth Trend Line" = "blue")) + 
@@ -123,22 +211,37 @@ ggplot(
   scale_y_continuous(breaks = seq(from = min_round_bound, to = max_round_bound, by = 25)) + 
   ylab("Lung Vital Capacity") + 
   xlab("Age") + 
-  ggtitle("Relationship Between Age in Years and Lung Capacity") + 
+  ggtitle(paste0("Relationship Between Age in Years and Lung Capacity. \n Correlation Coefficient: ", round(with(vc_data, cor(xvc100, age)),3))) + 
   theme_minimal()
 
 ```
 
-## 4.2 - C
+Overall, regression line follows smooth trend line, so the relationship between the two variables must be linear. At higher age levels 
+the smooth trend line starts to curve, however, there are less data available in that region, so we should be careful with the interpretation of 
+what we see. 
 
-to obtain this estimate we simply need to plug in the value of $X = 35$ into our regression equation
+We also can see that the variance around fitted regression line is quite large. This is also supported by a wide regression bound around regression 
+line. 
+
+
+### 4.2 - C
+
+To obtain this estimate we simply need to plug in the value of $X = 35$ into our regression equation. Note that this age is quite close to the 
+average value of age in the sample, so we should be have a pretty good estimate for the condifence interval of the average lung capacity for 
+a male who is 45 years old. 
 
 Estimated value is `r b0 + b1*35`
 
 We can also obtain a confidence interval for the mean response level when $X_h = 35$
 
-First, we want a standard error, so we need MSE (Mean Squared Error, obtain from residuals), deviation of $X_h$ from the mean, $\bar X$, and total variance of $X$
+First, we want a standard error, so we need MSE (Mean Squared Error, obtain from residuals), deviation of $X_h$ from the mean, $\bar X$, and total 
+variance of $X$
 
 We will also obtain a coefficient from the t distribution, at 95% confidence level and `r nrow(vc_data) - 2` degrees of freedom
+
+This is a new formula in this assignment, so we will state it below, before estimating standard error using data. 
+
+$$se(b_1)^2 = MSE \times [\frac{1}{n} + \frac{(X_h - \bar X)^2}{\Sigma (X_i - \bar X)^2}]$$
 
 ```{r}
 
@@ -167,19 +270,27 @@ ci_low <- est - sqrt(se_sq) * t_coef # lower bound of confidence interval
 ci_high <- est + sqrt(se_sq) * t_coef # upper bound of confidence interval 
 ```
 
+We estimate that the average lung capacity for men who are 35 years old will be `r b0 + b1*35`, with a confidence interval given by 
+( `r ci_low`, `r ci_high`). 
+
+Again, we can check our work using existing R functions. We will estimate average lung capacity of 35 year old males using code below. It also 
+conveniently provides a confidence interval. 
+
 ```{r}
 # predict mean response using R function 
 
 predict(lm_4_2_a, data.frame(age = X_h), interval = "confidence")
 ```
 
+The two sets of estiamtes align very closely. 
 
+### 4.2 - D
 
-## 4.2 - D
+Mean response is the average change in response variable ,lung capacity function, when X , age, is increased by 1 unit, i.e. when person gets one year odler.
+When age increases by 1 year then VC changes by `r (b1)` units. However, it makes more sense to say that one additional year of age 
+decreases the lung capacity by an overage of `r abs(b1)` units. 
 
-Mean response -> average increase in response - VC function, when X - age - is increased by 1 unit, i.e. when person gets one year odler 
-When age increases by 1 year then VC decreases by `r abs(b1)` . 
-Since the relationship is linear, when a person gets 10 years older, VC descreases by `r 10 * abs(b1)`
+Since the relationship is linear, when a person gets 10 years older, VC decreases by `r 10 * abs(b1)`
 
 # 5.3
 
@@ -192,26 +303,128 @@ colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
 
 ```
 
-## 5.3 - A
-
-We need to estimate average response when $X_h = 30$, 30 cigarettes per day. 
-
-We showed how to estimate model parameters, average reposnse level and confidence interval by hand in 4.2, so we will use R functions to 
-get estimates for interpretations 
+Before we can get an estimate and interpret the meaning of the confidence interval we need to take a look at the summary statistics and 
+the distribution of two variables. 
 
 ```{r}
+
+sum_tab <- 
+  with(cig, 
+  data.frame(
+    names = c("CPD", "Cotinine"), 
+    N = c(
+      length(!is.na(cpd)), 
+      length(!is.na(cotinine))
+    ), 
+    Mean = c(
+      mean(cpd, na.rm = T), 
+      mean(cotinine, na.rm = T)
+    ), 
+    Median = c(
+      median(cpd, na.rm = T), 
+      median(cotinine, na.rm = T)
+    ), 
+    sd = c(
+      sd(cpd, na.rm = T), 
+      sd(cotinine, na.rm = T)
+    )
+  )
+)
+
+colnames(sum_tab) <- c("Variable", "N", "Mean", "Median", "Standard Deviation")
+
+sum_tab %>% 
+  kbl(align = rep(c(rep('c', length(sum_tab))))) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+
+```
+
+```{r, warning=F, message=F}
+
+cpd_plot <- 
+  ggplot(
+    data = cig, 
+    aes(x = cpd)
+  ) + 
+  ggtitle("Distribution of Cigarettes per Day ") + 
+  xlab("Cigarettes Per Day Count") + 
+  geom_histogram()  +
+  theme_minimal()
+
+cot_plot <- 
+  ggplot(
+    data = cig, 
+    aes(x = cotinine)
+  ) + 
+  ggtitle("Distribution of Cotinine Levels ") + 
+  xlab("Cotinine") + 
+  geom_histogram()  +
+  theme_minimal()
+
+grid.arrange(cpd_plot, cot_plot, nrow = 1)
+
+```
+
+These two variables are heavily skewed, with long tails that have heavy outliers. This was expected when we look at the summary statistics. 
+The mean is greater than the median, which usually means that there are a few outliers on the far positive side, which increase the value of the 
+mean. Visual summary confirms this. Additionally, when we see a large value of standard deviation, this is another sign that there are huge 
+positive outliers. 
+
+We also will take a look at the relationship between CPD and Cotinine levels using a scatter plot.
+
+```{r, warning=F, message=F}
+
+ggplot(data = cig, 
+       aes(x = cpd, y = cotinine)) + geom_point() + 
+  stat_smooth(aes(colour = "Smooth Trend Line"), size = 1, se = F) + 
+  geom_smooth(method = "lm", size = 1, se = T, aes(colour = "Regression Line")) + 
+  
+  xlab("Cigarettes Per Day") + 
+  ylab("Cotinine Level") + 
+  ggtitle(paste0("Relationship between CPD and Cotinine Levels. \ Correlation coefficient: ", round(with(cig, cor(cpd, cotinine)), 3))) + 
+  
+  theme_minimal() + 
+  
+  scale_color_manual(
+    name = "Line Type", values = c("Smooth Trend Line" = "blue", "Regression Line" = "red")
+  )
+```
+
+Overall,we should expect a very poor fit of regression model to this data. There are several outliers that skew the fitted line. Especially 
+a data point for someone who smokes over 75 cigarettes per day, but has cotinine levels that are more common for people who smoke between zero and 
+ten cigarettes per day. However, we are not tasked with diagnostics and data tuning in this assignment, so we leave the data point here. 
+
+### 5.3 - A
+
+We need to estimate average response when $X_h = 30$, 30 cigarettes per day, and obtain a confidence interval for it.  
+
+We showed how to estimate model parameters, average response level and confidence interval by hand in 4.2, so we will use R functions to 
+get estimates for interpretations. 
+
+We provide a summary of the model that we use to obtain an estimate. 
+
+```{r}
+
+
 lm_5_3 <- lm(cotinine ~ cpd, data = cig)
 summary(lm_5_3)
 
 predict(lm_5_3, data.frame(cpd = 30), interval = "confidence")
-
-b1 <- summary(lm_5_3)$coefficients[2]
-b0 <- summary(lm_5_3)$coefficients[1]
 ```
 
-## 5.3 - B 
+We estimate that people who smoke 30 cigarettes per day have cotinite level of 
+`r predict(lm_5_3, data.frame(cpd = 30), interval = "confidence")[1]`, 
+bounded by (`r predict(lm_5_3, data.frame(cpd = 30), interval = "confidence")[2]`, 
+`r predict(lm_5_3, data.frame(cpd = 30), interval = "confidence")[3]`). 
 
-Here we need a new method of getting a confidence interval. Begin by derviing a standard error for a signle prediction 
+There confidence interval is very wide, because we estimate the response level for values that are quite far from the average value of 
+cigarettes per day, which is `r round(mean(cig$cpd), 2)`. This high distance from the center of the distribution contributes to the standard error 
+a lot. Moreover, we do not have enough data in that region of the distribution of CPD, and we can even make an argument that 30 cigarettes per day may be considered outside of the model scope, if we change the way these data were collected. 
+
+### 5.3 - B 
+
+Obtaining a prediction interval for a single new observed value is a new exercise in this homework, so we will state the formula below. We will also 
+use a built in function to validate our results. 
 
 $$se(Y_{h (new)})^2 = MSE * [1 + \frac{1}{n} + \frac{(X_{h (new)} - \bar X)^2}{\Sigma (X_i - \bar X)^2}]$$
 
@@ -236,17 +449,27 @@ ci_lower <- (b1 * X_h + b0) - se_y_h_new * t_coef
 ci_upper <- (b1 * X_h + b0) + se_y_h_new * t_coef
 ```
 
-```{r}
-ci_lower 
-ci_upper 
 
+The prediction interval for cotinine levels of a person who smokes 30 cigarettes per day bounded by 
+(`r round(ci_lower, 4)`, `r round(ci_upper, 4)`). 
+
+we can check the result using the function below: 
+
+```{R}
 predict(lm_5_3, data.frame(cpd = 30), interval = "prediction")
-
 ```
 
-## 5.3 - C
+Our result matches, so we can interpret the results now.
 
-```{r}
+Note that the cotinine levels range from `r min(cig$cotinine)` and `r max(cig$cotinine)` in the sample of data we have for analysis. This means that 
+the prediction interval spans over almost entire range of the Y variable. We saw in the introduction of this analysis section that the two variables 
+have outliers and extreme values. They contribute meaningfully to the standard error and uncertainty in the estimate. Moreover, estimating 
+a prediction interval for a single observation brings another level of uncertainty and variation. All together these factors result in a 
+prediction interval that is essentially unusable, since it captures alsmost the entire range of cotinine values. 
+
+### 5.3 - C
+
+```{r, warning=F, message=F}
 cig$resid <- lm_5_3$residuals
 
 ggplot(data = cig, 
@@ -263,17 +486,57 @@ ggplot(data = cig,
   scale_color_manual(name = "Line Types", values = c("Smooth Trend Line" = "blue", "Regression Line" = "red"))
 ```
 
+The plot of residuals and corresponding values of cigarettes per day has the same issues as the scatter plot. If we focus on the cluster of the 
+points for people who smoke less than 25 cigarettes per day, residuals are randomly scattered above and below the average regression line. 
+Extreme values and outliers are harder to interpret due to their nature. overall, there is no notable linear or other trend in residuals against the 
+values of the predictor, so residuals are independent of cpd, which follows the assumption of the model. 
+
+We can also see that residuals may vary between 2500 and 5000 values, which is a large error. 
+
+Summary of residuals also suggests that their distribution might be approximately normal. 
+
 ```{r}
 summary(cig$resid)
 ```
 
-average residual value: `r mean(cig$resid)`
+average residual value: `r round(mean(cig$resid), 4)`, which also follows a model assumption. 
 
-## 5.3 - D
+### 5.3 - D
+
+We can set up the ANOVA table using a model we created earlier and a simple function available in R. 
+
+First of all we can observe that the sum of squares is huge for both regression and error terms. We saw that residuals had a lot of variation 
+when evaluating the residual plot. We also know that regression mean square would be large because of extreme values and outliers in the data. 
+
+ANOVA table allows us to test the following hypotheses: 
+
+$H_0: \beta_1  = 0$
+
+$H_a: \beta_1 \neq 0$
 
 ```{r}
 anova(lm_5_3)
+f <- anova(lm_5_3)$`F value`
 
 f_cutoff <- qf(1-0.05, 1, nrow(cig) - 2)
-f_cutoff
+
 ```
+
+The goal of the ANOVA table is to evaluate the relationship response and predictor when comparing the portion of variation explained by the predictor. 
+If the regression mean square is large, then the coefficient of the fitted line is far from zero, and must be related to the response variable. 
+If the error mean square is small, then the values of response are distributed close to the fitted line, and therefore predictor value 
+is a good proxy for values of Y. 
+
+So, we obtain an F statistic to see is regression mean square is far greater than the error mean square. 
+
+$$\Large F statistic = F^* = \frac{Regression MS}{Residual MS }$$
+
+We obtain $F^*$ = `r f`. In order to know if this ratio is great enough we prepare a cutoff. Cutoff is given by a value of F that depends on 
+the desired confidence level and degrees of freedom. Degrees of freedom of F include 2 numbers. Regression degrees of freedom
+work out to be number of independent parameters, which is 1,
+since we have 1 predictor. Error degrees of freedom is $n-2$, which is `r nrow(cig) - 2`. 
+
+Hence, the cutoff value for $F$ = `r f_cutoff` for the 95% confidence level. 
+
+Clearly, `r f[1]` > `r f_cutoff`, so we reject the null hypothesis and accept that $\beta_1$ is not zero. Therefore, there exists a statistically 
+significant relationship between Cotinine levels and the daily cigarette consumption. 
