@@ -11,7 +11,7 @@
 
 <meta name="author" content="Denis Ostroushko" />
 
-<meta name="date" content="2022-09-24" />
+<meta name="date" content="2022-09-26" />
 
 <title>Homework 2</title>
 
@@ -589,7 +589,7 @@ pre code {
 
 <h1 class="title toc-ignore">Homework 2</h1>
 <h4 class="author">Denis Ostroushko</h4>
-<h4 class="date">2022-09-24</h4>
+<h4 class="date">2022-09-26</h4>
 
 </div>
 
@@ -1218,9 +1218,8 @@ greater than the error mean square.</p>
 In order to know if this ratio is great enough we prepare a cutoff.
 Cutoff is given by a value of F that depends on the desired confidence
 level and degrees of freedom. Degrees of freedom of F include 2 numbers.
-Regression degrees of freedom work out to be number of independent
-parameters, which is 1, since we have 1 predictor. Error degrees of
-freedom is <span class="math inline">\(n-2\)</span>, which is 84.</p>
+Regression degrees of freedom work out to be number of model terms <span class="math inline">\(k\)</span> minus <span class="math inline">\(1\)</span> , which is 1, since we have 1 predictor
+and 1 estimate for the intercept. Error degrees of freedom is <span class="math inline">\(n-2\)</span>, which is 84.</p>
 <p>Hence, the cutoff value for <span class="math inline">\(F\)</span> =
 3.9545684 for the 95% confidence level.</p>
 <p>Clearly, 15.0025968 &gt; 3.9545684, so we reject the null hypothesis

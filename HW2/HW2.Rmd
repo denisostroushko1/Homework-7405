@@ -533,8 +533,8 @@ $$\Large F statistic = F^* = \frac{Regression MS}{Residual MS }$$
 
 We obtain $F^*$ = `r f`. In order to know if this ratio is great enough we prepare a cutoff. Cutoff is given by a value of F that depends on 
 the desired confidence level and degrees of freedom. Degrees of freedom of F include 2 numbers. Regression degrees of freedom
-work out to be number of independent parameters, which is 1,
-since we have 1 predictor. Error degrees of freedom is $n-2$, which is `r nrow(cig) - 2`. 
+work out to be number of model terms $k$ minus $1$ , which is 1,
+since we have 1 predictor and 1 estimate for the intercept. Error degrees of freedom is $n-2$, which is `r nrow(cig) - 2`. 
 
 Hence, the cutoff value for $F$ = `r f_cutoff` for the 95% confidence level. 
 
