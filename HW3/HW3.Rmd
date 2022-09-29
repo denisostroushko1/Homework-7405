@@ -1,0 +1,128 @@
+---
+title: "Homework 3"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(onewaytests)
+```
+
+# Problem 6.3
+
+# Problem 7.1
+
+```{r}
+cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
+
+original_names <- colnames(cig)
+
+colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
+
+cig$log_nnal <- log(cig$nnal)
+```
+
+### 7.1 - A
+
+```{r}
+
+ggplot(data = cig, 
+       aes(y = log_nnal)) + geom_boxplot() 
+
+```
+
+##### Section (i)
+
+##### Section (ii)
+
+### 7.1 - B
+
+```{r}
+
+lm_7_1 <- lm(log_nnal ~ cpd, data = cig)
+
+cig$residuals <- lm_7_1$residuals
+
+cig$y_hat <- lm_7_1$fitted.values
+
+ggplot(data = cig, 
+       aes(x = cpd, 
+           y = y_hat)) + geom_point() + 
+  
+  geom_smooth(aes(colour = "Smooth Trend Line"), se = F) + 
+  geom_smooth(aes(colour = "Regression Line"), method = "lm", se = T) 
+
+
+```
+
+### 7.1 - C
+
+```{r}
+qqnorm(cig$y_hat)
+qqline(cig$y_hat)
+```
+
+Expected Value of Residual in a normal random sample is: $$\sqrt {MSE} \times z(\frac{Residual - .375}{N + .25}) $$
+
+
+```{r}
+
+mse <- sum(lm_7_1$residuals^2)/lm_7_1$df.residual
+
+cig <- cig %>% arrange(residuals)
+
+cig$resid_rank <- as.numeric(rownames(cig))
+
+N <- nrow(cig)
+
+cig$expected_resid <- sqrt(mse) * qnorm((cig$resid_rank - .375)/(N + .25))
+
+corr <- cor(cig$residuals, cig$expected_resid)
+
+crit_value_80 <- .985
+crit_value_90 <- .986
+  
+```
+
+```{r}
+
+
+lower <- cig[cig$resid_rank < median(cig$resid_rank), ]$residuals
+upper <- cig[cig$resid_rank >= median(cig$resid_rank), ]$residuals
+
+lower_d <- abs(lower - median(lower))
+upper_d <- abs(upper - median(upper))
+
+s_2 <- 
+  (sum((lower_d - mean(lower_d))^2) + 
+  sum((upper_d - mean(upper_d))^2)) / 
+  (nrow(cig) - 2)
+
+t <- (mean(lower_d) - mean(upper_d)) / 
+  (sqrt(s_2) * 
+     sqrt(1/length(lower_d) + 1/length(upper_d))
+   )
+
+
+t_comp <- qt(1-.05/2, nrow(cig) - 2)
+
+ifelse(abs(t) > t_comp, 
+       paste("T star: ", round(t,3), " T: ", round(t_comp,3), ". Significant difference"),
+       paste("T star: ", round(t,3), " T: ", round(t_comp,3), ". Not significant difference")
+       )
+
+```
+
+
+
+```{r}
+
+cig$indc <- 
+  ifelse(cig$resid_rank >= median(cig$resid_rank), "Above", "Below")
+  
+bf.test(residuals ~ indc, data = cig)
+
+```
