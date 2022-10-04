@@ -74,7 +74,8 @@ ggplot(data = vit_data,
                      breaks = seq(from = 1, to = 5, by = 1)) + 
   ggtitle("Comparison of Two Slopes for Two Groups ") + 
   ylab("Response Meansurements") + 
-  xlab("Dose - Natural Log Scale")
+  xlab("Dose - Natural Log Scale") + 
+  theme_minimal()
 ```
 
 In order to compare two slopes we will obtain them from simple linear regression models. To get each slope I partition the data set 
@@ -223,7 +224,8 @@ Simple box plot of NNAL measurements on the natural base logarithmic scale is gi
 ggplot(data = cig, 
        aes(y = log_nnal)) + geom_boxplot() +
   
-  ylab("NNAL Measurements on the Log 10 Scale") 
+  ylab("NNAL Measurements on the Log 10 Scale") + 
+  theme_minimal()
 
 ```
 
@@ -244,7 +246,8 @@ If the get a box plot for values of NNAL on the original scale, we can why we ne
 ggplot(data = cig, 
        aes(y = nnal)) + geom_boxplot() +
   
-  ylab("NNAL Measurements on the Original Scale") 
+  ylab("NNAL Measurements on the Original Scale") + 
+  theme_minimal()
 
 ```
 
@@ -252,7 +255,26 @@ This type of plot reveal almost no information about the variance of NNAL values
 
 ### 7.1 - B
 
-We showed how to fit a linear model and obtain $\hat \beta_i$ estimates using least squares method in the previous homework, so we will skip manual calculation this time. 
+Before exploring the relationship between residuals and a predictor variable we shall look at the relationship between 
+CPD and NNAL on the log scale. 
+
+```{r}
+ggplot(data = cig, 
+       aes(x = cpd, 
+           y = log_nnal)) + geom_point() + 
+  
+  geom_smooth(aes(colour = "Smooth Trend Line"), se = F) + 
+  geom_smooth(aes(colour = "Regression Line"), method = "lm", se = T)  + 
+  
+  ylab("Residuals")+
+  xlab("Cigarettes Per Day") + 
+  ggtitle(paste0("Residuals vs Predictor Plot. Correlation: ", round(cor(cig$cpd, cig$log_nnal),4)))+ 
+  theme_minimal()
+```
+
+We observe that the model does not fit our data extremely well. There are greater values of CPD that severely affect the 
+fit of the model. Perhaps, a lack of fitness test is in order. 
+
 We will use R function to fit the model and obtain fitted, or predicted, values as well as residuals. Code below obtains all needed data, and shows the plot of residuals 
 against corresponding values of predictor variable - the number of cigarettes per day.  
 
@@ -276,7 +298,8 @@ ggplot(data = cig,
   
   ylab("Residuals")+
   xlab("Cigarettes Per Day") + 
-  ggtitle(paste0("Residuals vs Predictor Plot. Correlation: ", round(cor(cig$cpd, cig$residuals),4)))
+  ggtitle(paste0("Residuals vs Predictor Plot. Correlation: ", round(cor(cig$cpd, cig$residuals),4)))+ 
+  theme_minimal()
 
 ```
 
@@ -290,7 +313,11 @@ say more about the constant variance assumption.
 
 * **Linearity of Regression Function and Residual Independence**
 
-We can see that the regression line against residuals in flat at zero, so residuals are independent from the predictor variable. 
+We can see that the regression line against residuals in flat at zero, so residuals should be independent from the predictor variable. Moreover, linear correlation coefficient is 0. 
+
+But, we can see that the smooth Loess line is not really showing an independent relationship. If we limit our focus to the 
+main cluster of the points, located below CPD values around 25, we can see that the trend actually might exist there. 
+The smooth line starts below zero on the residual scale, and drastically rises. The smooth line only flattens when we get outside of the main residual cluster. Likely, the assumption of independence is violated. 
 
 The model clearly does not fit the outliers very well. We can see that a person who consumes more than 75 cigarettes per day has values of NNAL much lower than expected under 
 this mode, while one person who consumes around 35 cigarettes per day has values of NNAL that are much larger than expected. 
@@ -338,7 +365,8 @@ ggplot(data= cig,
   geom_smooth(method = "lm", color = "red") + 
   ylab("Residuals") + 
   xlab("Expected Residuals") + 
-  ggtitle(paste("Correlation between Observed and Expected", round(cor(cig$residuals, cig$expected_resid),3)))
+  ggtitle(paste("Correlation between Observed and Expected", round(cor(cig$residuals, cig$expected_resid),3)))+ 
+  theme_minimal()
 
 ```
 
@@ -382,7 +410,8 @@ ggplot(
   data = resid_df, 
   aes(x = group, 
       y = residuals)
-) + geom_boxplot() + geom_jitter()
+) + geom_boxplot() + geom_jitter()+ 
+  theme_minimal()
 ```
 
 So far, we can see that the median and values of residuals in the upper group are greater than those in the lower group, however, their variance might not differ that much. 
@@ -420,7 +449,8 @@ ggplot(
   aes(x = group, 
       y = residuals)
 ) + geom_boxplot() + geom_jitter() + 
-  ylab("Absolute Deviations from the Group Median")
+  ylab("Absolute Deviations from the Group Median")+ 
+  theme_minimal()
 ```
 
 Same conclusion as before, while the values themselves are quite different for the two groups, dispersion of values does not seem to differ between the two groups. 
