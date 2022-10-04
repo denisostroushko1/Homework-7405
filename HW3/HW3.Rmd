@@ -57,8 +57,12 @@ vit_data <- data.frame(dose, response, treat)
 
 ### 6.3 - A
 
-Visual Exam. To assess if the lines are indeed parallel, i.e. the slopes are the same, we need to work with predictor variable, 
+We should look at the slopes first. 
+Scope of dose values is quite different between the two types of treatments. 
+To assess if the lines are indeed parallel, i.e. the slopes are the same, we need to work with the predictor variable, 
 dose, on the logarithmic scale. I chose natural logarithm scale for this assignment. 
+
+\newpage 
 
 ```{r}
 
@@ -67,12 +71,14 @@ ggplot(data = vit_data,
            y = response, 
            color = treat)) + geom_point() + stat_smooth(method = "lm") + 
   scale_x_continuous(labels = function(x){round(exp(x))}, 
-                     breaks = seq(from = 1, to = 5, by = 1))
+                     breaks = seq(from = 1, to = 5, by = 1)) + 
+  ggtitle("Comparison of Two Slopes for Two Groups ") + 
+  ylab("Response Meansurements") + 
+  xlab("Dose - Natural Log Scale")
 ```
 
-
-
-Get slope, and variance of slopes
+In order to compare two slopes we will obtain them from simple linear regression models. To get each slope I partition the data set 
+based on treatment and extract estimates for slope and standard errors. All values are saved into variables below. 
 
 ```{r}
 d3_lm <- lm(response ~ log(dose), data = vit_data %>% filter(treat == "Vitamin D3"))
@@ -99,14 +105,10 @@ All formulas are taken from slides 10-12 for parts $(a)$ and $(b)$.
 
 * We have weight for each group $i$ defined as 
 
-$$ \Large weight_i = \frac{1}{se(\hat \beta_{i})}$$
-
-
+$$ \Large weight_i = \frac{1}{se(\hat \beta_{i})^2}$$
 
 ```{r}
-
 # since we have just two weights we will not rely on vectors. 
-
 weight_d3 <- 1/d3_slope_s2
 weight_cod <- 1/cod_dose_s2
 ```
@@ -167,20 +169,21 @@ $$ \Huge se(\bar b) = \frac{1}{weight_1 + weight_2}$$
 
 ```{r}
 weighted_s2 <- 1/(weight_d3 + weight_cod)
-
-sqrt(weighted_s2)
 ```
+
+So, the standard error for the weighted average slope is `r round(sqrt(weighted_s2),3)`. 
 
 ### 6.3 - C
 
-Relative Potency: 
-Standard: D3
-Test: Cod-Liver
+To find relative potency we refer to Slide #72. We will use estimates for the intercept, slope, standard error and 
+weight from parts $(a)$ and $(b)$. 
 
-From slide 72, 
-Let $r$ be the potency, then 
+We assign Vitamin D3 treatment as Standard treatment, and Cod-liver Oil as Test treatment. 
+
+* Let $log(r)$ be the potency, then 
 
 $$ \Large log (r) = \frac{Intercept_{D3} - Intercept_{Cod}}{\frac{weight_{D3} * \hat \beta_{D3} + weight_{COD} * \hat \beta_{COD}}{weight_{D3}+ weight_{COD}}}$$
+
 * Note that previously we already established weights
 
 ```{r}
@@ -189,12 +192,16 @@ log_potency <- (cod_dose_int - d3_dose_int )/
     (weight_d3 * d3_dose_slope + weight_cod * cod_dose_slope)/
       (weight_d3 + weight_cod)
   )
-
-exp(log_potency)
-
 ```
 
-Conclusion on relative potency
+* $log(r) =$ relative potency = `r round(log_potency, 4)`. 
+
+* When we convert relative potency from the logarithmic scale using $e^{log(r)} = r$ we obtain a point estimate of `r round(exp(log_potency),4)`. 
+
+* So, the potency of Cod-liver treatment relevant to Vitamin D3 treatment is `r round(exp(log_potency),4)`. So, we need to administer
+way more test(Cod-liver) drug to obtain the same response as standard(D3) drug. 
+
+\newpage
 
 # Problem 7.1
 
@@ -222,15 +229,14 @@ ggplot(data = cig,
 
 ##### Section (i)
 
-There are extreme measurements on NNAL on the natural base logarithmic scale. They are located on the higher end of the distribution. These values are identified as potential outliers in the data. Values above above the threshold given by $1.5 \times Upper IQR$, which is `r round(summary(cig$log_nnal)[5] - summary(cig$log_nnal)[2]  * 1.5 , 4)`. 
+There are extreme measurements on NNAL on the natural base logarithmic scale. They are located on the higher end of the distribution. These values are identified as potential outliers in the data. 
 
-There are `r length(cig[cig$log_nnal > summary(cig$log_nnal)[5] - summary(cig$log_nnal)[2]  * 1.5, ]$log_nnal)` values of Log NNAL measurements that are above that range. 
+There are 5 values of Log NNAL measurements that are above that range. 
 
 
 ##### Section (ii)
 
-This plot is symmetric. The main body of the box is almost evenly distributed around zero, with a slight bias towards negative values. Same applies to maximum values withing
-the 1.5 IQR range. Lower whisker extends to values close to negative three, while the upper whisker goes to `r round(summary(cig$log_nnal)[5] - summary(cig$log_nnal)[2]  * 1.5 , 4)`, as we saw previously. 
+This plot is symmetric. The main body of the box is almost evenly distributed around zero, with a slight bias towards negative values. Same applies to maximum values withing the 1.5 IQR range. 
 
 If the get a box plot for values of NNAL on the original scale, we can why we need a transformation. 
 
@@ -266,7 +272,11 @@ ggplot(data = cig,
            y = residuals)) + geom_point() + 
   
   geom_smooth(aes(colour = "Smooth Trend Line"), se = F) + 
-  geom_smooth(aes(colour = "Regression Line"), method = "lm", se = T) 
+  geom_smooth(aes(colour = "Regression Line"), method = "lm", se = T)  + 
+  
+  ylab("Residuals")+
+  xlab("Cigarettes Per Day") + 
+  ggtitle(paste0("Residuals vs Predictor Plot. Correlation: ", round(cor(cig$cpd, cig$residuals),4)))
 
 ```
 
