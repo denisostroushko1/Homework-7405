@@ -1,1 +1,207 @@
+---
+title: "Homework 4"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: pdf_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
 
+```{r, echo = F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H", out.extra = "")
+options(scipen=999)
+```
+
+```{r, include=F}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+```
+
+```{r, eval=F}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+```
+
+# 8.4
+
+```{r, echo  = F}
+e_cig_3 <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/E-CID-3.xlsx") 
+```
+
+### 8.4 - A
+
+First, let's look at the distribution of the calculated response variable, it is a good practice to do so going 
+forward for model development and diagnostics purpose. 
+
+```{r, echo=F}
+#response
+e_cig_3$Y1 <-log( e_cig_3$NNAL_vt4_creat/e_cig_3$NNAL_vt0_creat )
+
+# fix some variables and their class: 
+e_cig_3$income30 <- as.factor(e_cig_3$income30)
+e_cig_3$gender <- as.factor(e_cig_3$gender)
+e_cig_3$white <- as.factor(e_cig_3$white)
+e_cig_3$educ2 <- as.factor(e_cig_3$educ2)
+```
+
+```{r, fig.height=3.5}
+
+ggplot(data = e_cig_3,
+       aes(x = Y1)) +
+  geom_histogram(binwidth = .1, color = "black", fill = "light blue") +
+  theme_minimal() +
+  ylab("Count") +  xlab("Ratio of Final to Baseline NNAL Measurements") + ggtitle("Ratio of NNAL Measurements on the Natural Logarithmic Scale")
+```
+
+\newpage
+
+Coefficients and other statistics from the multiple regression model are given in the table below. 
+
+```{r}
+e_cig_3_model_data <-
+  e_cig_3 %>% select(arm, age, gender, white, educ2, income30, FTND, Y1)
+
+model_8.4 <- lm(Y1 ~ ., data = e_cig_3_model_data)
+model_8.4_res <- summary(model_8.4)
+model_8.4_res_df <- data.frame(model_8.4_res$coefficients)
+model_8.4_res_df$var <- rownames(model_8.4_res_df)
+rownames(model_8.4_res_df) <- NULL
+model_8.4_res_df <- model_8.4_res_df %>% select(var, everything())
+model_8.4_res_df <-
+  model_8.4_res_df %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 3)
+                                      )
+                                 )
+colnames(model_8.4_res_df) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+
+model_8.4_res_df %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+Comments: 
+
+* None of the variables appear to be statistically significantly related to the response, after adjusting 
+  for other variables, at the 5% level. 
+  
+* However, p-value for the income variable is suggestive that there might be some relationship going on, 
+  which we potentially can uncover either with a better model or with more data. Income summary is given below: 
+  
+```{r}
+sum_income <- 
+  e_cig_3 %>% 
+    group_by(income30) %>% 
+    dplyr::summarise(
+      n = n(), 
+      mean = mean(Y1), 
+      median = median(Y1)
+    )
+
+
+sum_income$income30 <- c("<= $30K/Yr.", "> $30K/Yr.")
+
+colnames(sum_income) <- c("Income Levels", "N", "Average Response", "Median Response")
+
+sum_income %>% 
+  kbl(align = 'c', booktabs = T) %>% 
+  kable_styling(latex_options = 'striped')
+```
+
+* While the average response appears to be quite different between the two groups, other variables in the 
+  multiple linear model might have an effect on this relationship. 
+
+
+### 8.4 - B
+
+The distribution of the response variable below is highly skewed, so, perhaps, we should expect an even more 
+poor fit of the model, and less statistically significant number of predictors. 
+
+```{r}
+#response
+e_cig_3$Y2 <-log( e_cig_3$TNE_vt0_creat /e_cig_3$TNE_vt4_creat )
+
+ggplot(data = e_cig_3,
+       aes(x = Y2)) +
+  geom_histogram(binwidth = .1, color = "black", fill = "light blue") +
+  theme_minimal() +
+  ylab("Count") +
+  xlab("Ratio of Final to Baseline TNE Measurements") +
+  ggtitle("Ratio of TNE Measurements on the Natural Logarithmic Scale")
+
+```
+
+```{r}
+e_cig_3_model_data <-
+  e_cig_3 %>% select(arm, age, gender, white, educ2, income30, FTND, Y2)
+model_8.4 <- lm(Y2 ~ ., data = e_cig_3_model_data)
+model_8.4_res <- summary(model_8.4)
+model_8.4_res_df <- data.frame(model_8.4_res$coefficients)
+model_8.4_res_df$var <- rownames(model_8.4_res_df)
+rownames(model_8.4_res_df) <- NULL
+model_8.4_res_df <- model_8.4_res_df %>% select(var, everything())
+model_8.4_res_df <-
+  model_8.4_res_df %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 3)
+                                      )
+                                 )
+colnames(model_8.4_res_df) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+model_8.4_res_df %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+* None of the variables here are close to being statistically significant 
+
+* Therefore, none of the predictors help us explain the variance of the biomarker change over time. 
+
+# 9.3
+
+```{r}
+data_9.3 <-
+data.frame(
+  x = c(
+    24,
+    28,
+    32,
+    36,
+    40,
+    44,
+    48,
+    52,
+    56,
+    60
+    ),
+  y = c(
+    38.8,
+    39.5,
+    40.3,
+    40.7,
+    41.0,
+    41.1,
+    41.4,
+    41.6,
+    41.8,
+    41.9
+    )
+  )
+
+data_9.3 %>% kbl() %>% 
+  kable_styling(latex_options = c("striped"))
+
+res1 <- t(data_9.3$y) %*% data_9.3$y
+
+res2 <- t(data_9.3$x) %*% data_9.3$y
+
+res3 <- t(data_9.3$x) %*% data_9.3$x
+
+```
+
+* $Y`Y = res1 =$ `r res1`
+
+* $X`Y = res2 =$ `r res2`
+
+* $X`X = res3 =$ `r res3`
