@@ -3,6 +3,9 @@ title: "Homework 3"
 author: "Denis Ostroushko"
 date: "`r Sys.Date()`"
 output: pdf_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -28,7 +31,7 @@ library(MASS)
 
 # Problem 6.3
 
-We enter the data below. 
+We enter the data below.
 
 ```{r}
 #put in the data 
@@ -57,12 +60,13 @@ vit_data <- data.frame(dose, response, treat)
 
 ### 6.3 - A
 
-We should look at the slopes first. 
-Scope of dose values is quite different between the two types of treatments. 
-To assess if the lines are indeed parallel, i.e. the slopes are the same, we need to work with the predictor variable, 
-dose, on the logarithmic scale. I chose natural logarithm scale for this assignment. 
+We should look at the slopes first. Scope of dose values is quite
+different between the two types of treatments. To assess if the lines
+are indeed parallel, i.e. the slopes are the same, we need to work with
+the predictor variable, dose, on the logarithmic scale. I chose natural
+logarithm scale for this assignment.
 
-\newpage 
+\newpage
 
 ```{r}
 
@@ -78,8 +82,10 @@ ggplot(data = vit_data,
   theme_minimal()
 ```
 
-In order to compare two slopes we will obtain them from simple linear regression models. To get each slope I partition the data set 
-based on treatment and extract estimates for slope and standard errors. All values are saved into variables below. 
+In order to compare two slopes we will obtain them from simple linear
+regression models. To get each slope I partition the data set based on
+treatment and extract estimates for slope and standard errors. All
+values are saved into variables below.
 
 ```{r}
 d3_lm <- lm(response ~ log(dose), data = vit_data %>% filter(treat == "Vitamin D3"))
@@ -101,10 +107,11 @@ cod_dose_s2 <- sum_cod$coefficients[,2][2]^2
 
 ```
 
-For each slope we need a weight, which is the inverse of the slope's estimated variance. 
-All formulas are taken from slides 10-12 for parts $(a)$ and $(b)$.
+For each slope we need a weight, which is the inverse of the slope's
+estimated variance. All formulas are taken from slides 10-12 for parts
+$(a)$ and $(b)$.
 
-* We have weight for each group $i$ defined as 
+-   We have weight for each group $i$ defined as
 
 $$ \Large weight_i = \frac{1}{se(\hat \beta_{i})^2}$$
 
@@ -114,7 +121,8 @@ weight_d3 <- 1/d3_slope_s2
 weight_cod <- 1/cod_dose_s2
 ```
 
-Additionally, we need to obtain a weighted average slope. I present a formula for our case, where we have just two groups: 
+Additionally, we need to obtain a weighted average slope. I present a
+formula for our case, where we have just two groups:
 
 $$\Large \bar b = \frac{weight_1 * \hat \beta_1 + weight_2 * \hat \beta_2}{weight_1 + weight_2}$$
 
@@ -125,7 +133,8 @@ weighted_average <-
   
 ```
 
-And finally, we get a G statistic. Once again, I will present a formula for G statistic that is applied to our case with two groups
+And finally, we get a G statistic. Once again, I will present a formula
+for G statistic that is applied to our case with two groups
 
 $$\Large G = weight_1 * (\hat \beta_1 - \hat b)^2 + weight_2 * (\hat \beta_2 - \hat b)^2$$
 
@@ -139,32 +148,37 @@ G_stat <-
 G_cutoff <- qchisq(1-.05/2, 1)
 ```
 
-Now we can set up a test to compare the two slopes: 
+Now we can set up a test to compare the two slopes:
 
-* Null Hypothesis: $H_0: \hat \beta_1 = \hat \beta_2$
+-   Null Hypothesis: $H_0: \hat \beta_1 = \hat \beta_2$
 
-* Alternative Hypothesis: $H_a: \hat \beta_1 \neq \hat \beta_2$
+-   Alternative Hypothesis: $H_a: \hat \beta_1 \neq \hat \beta_2$
 
-* Test statistic $G:$ `r round(G_stat,4)`
+-   Test statistic $G:$ `r round(G_stat,4)`
 
-* Cutoff value from $\chi^2$ distribution with 1 degree of freedom is `r round(G_cutoff,4)`
+-   Cutoff value from $\chi^2$ distribution with 1 degree of freedom is
+    `r round(G_cutoff,4)`
 
-    - Usually degree of freedom for this test is $k-1$, where $k$ is the number of groups. We have 2 groups, so we have 1 degree of 
+    -   Usually degree of freedom for this test is $k-1$, where $k$ is
+        the number of groups. We have 2 groups, so we have 1 degree of
         freedom
 
-* Obtained $G$ statistic does not exceed the threshold, so we can not reject the null hypothesis. Therefore, we do not have enough 
-  evidence to conclude that 1 unit increase in dose on the natural logarithmic scale has difference impact on the response between the 
-  two different treatments. 
-  
-  We will obtain a weighted average for the two treatments now 
+-   Obtained $G$ statistic does not exceed the threshold, so we can not
+    reject the null hypothesis. Therefore, we do not have enough
+    evidence to conclude that 1 unit increase in dose on the natural
+    logarithmic scale has difference impact on the response between the
+    two different treatments.
+
+    We will obtain a weighted average for the two treatments now
 
 ### 6.3 - B
 
 we have the slope, now we need the standard error
 
-Weighted average slope is `r round(weighted_average,3)`. We calculated this value as a part of $G$ statistic calculation. 
+Weighted average slope is `r round(weighted_average,3)`. We calculated
+this value as a part of $G$ statistic calculation.
 
-Standard error for our case: 
+Standard error for our case:
 
 $$ \Huge se(\bar b) = \frac{1}{weight_1 + weight_2}$$
 
@@ -172,20 +186,23 @@ $$ \Huge se(\bar b) = \frac{1}{weight_1 + weight_2}$$
 weighted_s2 <- 1/(weight_d3 + weight_cod)
 ```
 
-So, the standard error for the weighted average slope is `r round(sqrt(weighted_s2),3)`. 
+So, the standard error for the weighted average slope is
+`r round(sqrt(weighted_s2),3)`.
 
 ### 6.3 - C
 
-To find relative potency we refer to Slide #72. We will use estimates for the intercept, slope, standard error and 
-weight from parts $(a)$ and $(b)$. 
+To find relative potency we refer to Slide #72. We will use estimates
+for the intercept, slope, standard error and weight from parts $(a)$ and
+$(b)$.
 
-We assign Vitamin D3 treatment as Standard treatment, and Cod-liver Oil as Test treatment. 
+We assign Vitamin D3 treatment as Standard treatment, and Cod-liver Oil
+as Test treatment.
 
-* Let $log(r)$ be the potency, then 
+-   Let $log(r)$ be the potency, then
 
 $$ \Large log (r) = \frac{Intercept_{D3} - Intercept_{Cod}}{\frac{weight_{D3} * \hat \beta_{D3} + weight_{COD} * \hat \beta_{COD}}{weight_{D3}+ weight_{COD}}}$$
 
-* Note that previously we already established weights
+-   Note that previously we already established weights
 
 ```{r}
 log_potency <- (cod_dose_int - d3_dose_int )/
@@ -195,12 +212,16 @@ log_potency <- (cod_dose_int - d3_dose_int )/
   )
 ```
 
-* $log(r) =$ relative potency = `r round(log_potency, 4)`. 
+-   $log(r) =$ relative potency = `r round(log_potency, 4)`.
 
-* When we convert relative potency from the logarithmic scale using $e^{log(r)} = r$ we obtain a point estimate of `r round(exp(log_potency),4)`. 
+-   When we convert relative potency from the logarithmic scale using
+    $e^{log(r)} = r$ we obtain a point estimate of
+    `r round(exp(log_potency),4)`.
 
-* So, the potency of Cod-liver treatment relevant to Vitamin D3 treatment is `r round(exp(log_potency),4)`. So, we need to administer
-way more test(Cod-liver) drug to obtain the same response as standard(D3) drug. 
+-   So, the potency of Cod-liver treatment relevant to Vitamin D3
+    treatment is `r round(exp(log_potency),4)`. So, we need to
+    administer way more test(Cod-liver) drug to obtain the same response
+    as standard(D3) drug.
 
 \newpage
 
@@ -218,7 +239,8 @@ cig$log_nnal <- log(cig$nnal)
 
 ### 7.1 - A
 
-Simple box plot of NNAL measurements on the natural base logarithmic scale is given below: 
+Simple box plot of NNAL measurements on the natural base logarithmic
+scale is given below:
 
 ```{r}
 ggplot(data = cig, 
@@ -231,16 +253,20 @@ ggplot(data = cig,
 
 ##### Section (i)
 
-There are extreme measurements on NNAL on the natural base logarithmic scale. They are located on the higher end of the distribution. These values are identified as potential outliers in the data. 
+There are extreme measurements on NNAL on the natural base logarithmic
+scale. They are located on the higher end of the distribution. These
+values are identified as potential outliers in the data.
 
-There are 5 values of Log NNAL measurements that are above that range. 
-
+There are 5 values of Log NNAL measurements that are above that range.
 
 ##### Section (ii)
 
-This plot is symmetric. The main body of the box is almost evenly distributed around zero, with a slight bias towards negative values. Same applies to maximum values withing the 1.5 IQR range. 
+This plot is symmetric. The main body of the box is almost evenly
+distributed around zero, with a slight bias towards negative values.
+Same applies to maximum values withing the 1.5 IQR range.
 
-If the get a box plot for values of NNAL on the original scale, we can why we need a transformation. 
+If the get a box plot for values of NNAL on the original scale, we can
+why we need a transformation.
 
 ```{r}
 ggplot(data = cig, 
@@ -251,12 +277,17 @@ ggplot(data = cig,
 
 ```
 
-This type of plot reveal almost no information about the variance of NNAL values, other than there are heavy outliers on the upper end. Usually, this type of distribution suggests that the measurements are in fact log-normally distributed, which is why we performed a transformation in the first place. 
+This type of plot reveal almost no information about the variance of
+NNAL values, other than there are heavy outliers on the upper end.
+Usually, this type of distribution suggests that the measurements are in
+fact log-normally distributed, which is why we performed a
+transformation in the first place.
 
 ### 7.1 - B
 
-Before exploring the relationship between residuals and a predictor variable we shall look at the relationship between 
-CPD and NNAL on the log scale. 
+Before exploring the relationship between residuals and a predictor
+variable we shall look at the relationship between CPD and NNAL on the
+log scale.
 
 ```{r}
 ggplot(data = cig, 
@@ -272,11 +303,14 @@ ggplot(data = cig,
   theme_minimal()
 ```
 
-We observe that the model does not fit our data extremely well. There are greater values of CPD that severely affect the 
-fit of the model. Perhaps, a lack of fitness test is in order. 
+We observe that the model does not fit our data extremely well. There
+are greater values of CPD that severely affect the fit of the model.
+Perhaps, a lack of fitness test is in order.
 
-We will use R function to fit the model and obtain fitted, or predicted, values as well as residuals. Code below obtains all needed data, and shows the plot of residuals 
-against corresponding values of predictor variable - the number of cigarettes per day.  
+We will use R function to fit the model and obtain fitted, or predicted,
+values as well as residuals. Code below obtains all needed data, and
+shows the plot of residuals against corresponding values of predictor
+variable - the number of cigarettes per day.
 
 ```{r}
 
@@ -303,41 +337,59 @@ ggplot(data = cig,
 
 ```
 
-There is a number of departures from the normal error regression that we can study. 
+There is a number of departures from the normal error regression that we
+can study.
 
-* **Non-constant variance**
+-   **Non-constant variance**
 
-Right away we can see that the variance of residuals may not be constant. However, it is hard to tell if that is true, because we have some outliers in terms of 
-cigarette consumption. However, due to the shape of the cluster of residuals and values of predictor variable where residuals are concentrated, more tests are required to 
-say more about the constant variance assumption. 
+Right away we can see that the variance of residuals may not be
+constant. However, it is hard to tell if that is true, because we have
+some outliers in terms of cigarette consumption. However, due to the
+shape of the cluster of residuals and values of predictor variable where
+residuals are concentrated, more tests are required to say more about
+the constant variance assumption.
 
-* **Linearity of Regression Function and Residual Independence**
+-   **Linearity of Regression Function and Residual Independence**
 
-We can see that the regression line against residuals in flat at zero, so residuals should be independent from the predictor variable. Moreover, linear correlation coefficient is 0. 
+We can see that the regression line against residuals in flat at zero,
+so residuals should be independent from the predictor variable.
+Moreover, linear correlation coefficient is 0.
 
-But, we can see that the smooth Loess line is not really showing an independent relationship. If we limit our focus to the 
-main cluster of the points, located below CPD values around 25, we can see that the trend actually might exist there. 
-The smooth line starts below zero on the residual scale, and drastically rises. The smooth line only flattens when we get outside of the main residual cluster. Likely, the assumption of independence is violated. 
+But, we can see that the smooth Loess line is not really showing an
+independent relationship. If we limit our focus to the main cluster of
+the points, located below CPD values around 25, we can see that the
+trend actually might exist there. The smooth line starts below zero on
+the residual scale, and drastically rises. The smooth line only flattens
+when we get outside of the main residual cluster. Likely, the assumption
+of independence is violated.
 
-The model clearly does not fit the outliers very well. We can see that a person who consumes more than 75 cigarettes per day has values of NNAL much lower than expected under 
-this mode, while one person who consumes around 35 cigarettes per day has values of NNAL that are much larger than expected. 
+The model clearly does not fit the outliers very well. We can see that a
+person who consumes more than 75 cigarettes per day has values of NNAL
+much lower than expected under this mode, while one person who consumes
+around 35 cigarettes per day has values of NNAL that are much larger
+than expected.
 
-* **Outliers and Important Variables**
+-   **Outliers and Important Variables**
 
-The reason for outliers, as Chap explained, might be the proportion of a cigarette that these people consume. A person who consumers over 75 cigarettes per day might 
-start it, have some of it, and throw most of it away. While someone who smokes around 35 per day consumer all 35 in full. This is, of course, just a speculation, 
-but if we include more data and construct a multiple linear regression model we may be able to explain these outliers better. 
+The reason for outliers, as Chap explained, might be the proportion of a
+cigarette that these people consume. A person who consumers over 75
+cigarettes per day might start it, have some of it, and throw most of it
+away. While someone who smokes around 35 per day consumer all 35 in
+full. This is, of course, just a speculation, but if we include more
+data and construct a multiple linear regression model we may be able to
+explain these outliers better.
 
-* **Normality of Residual Distribution**
+-   **Normality of Residual Distribution**
 
-In order to test outliers for normality we plot the residuals against expected values of residuals in a normally distributed random sample. 
+In order to test outliers for normality we plot the residuals against
+expected values of residuals in a normally distributed random sample.
 
-We can calculate these expected values using the formula: 
+We can calculate these expected values using the formula:
 $$\sqrt {MSE} \times z(\frac{Residual - .375}{N + .25}) $$
 
-Where $z( )$ is the quartile of the standard normal distribution. 
+Where $z( )$ is the quartile of the standard normal distribution.
 
-We plot this relationship below: 
+We plot this relationship below:
 
 ```{r}
 
@@ -370,18 +422,25 @@ ggplot(data= cig,
 
 ```
 
-
-We can see that observed and expected residuals are very strongly linearly correlated. So, we do not have heavy tails and residuals do not deviate from normality. Correlation
-coefficient is `r round(cor(cig$residuals, cig$expected_resid),3)`. Our sample has `r nrow(cig)` observations, so we can find a critical value for 95% confidence level 
-for this correlation coefficient. With 80 observations, the critical level is `r crit_value_80`, while with 90 observations the critical level is `r crit_value_90`. 
-Estimated correlation coefficient is above both of those values, so out residuals are normally distributed. 
-
+We can see that observed and expected residuals are very strongly
+linearly correlated. So, we do not have heavy tails and residuals do not
+deviate from normality. Correlation coefficient is
+`r round(cor(cig$residuals, cig$expected_resid),3)`. Our sample has
+`r nrow(cig)` observations, so we can find a critical value for 95%
+confidence level for this correlation coefficient. With 80 observations,
+the critical level is `r crit_value_80`, while with 90 observations the
+critical level is `r crit_value_90`. Estimated correlation coefficient
+is above both of those values, so out residuals are normally
+distributed.
 
 ### 7.1 - C
 
-In order to perform a Brown-Forsythe test we need to complete a number of data transformation steps. 
-We begin by saving residuals into its own data frame, and splitting them into two groups. We have a total of `r nrow(cig)` observations, so we will assign 
-`r nrow(cig)/2` lowest values of residuals into "Lower" groups, and the rest into "Upper" group.
+In order to perform a Brown-Forsythe test we need to complete a number
+of data transformation steps. We begin by saving residuals into its own
+data frame, and splitting them into two groups. We have a total of
+`r nrow(cig)` observations, so we will assign `r nrow(cig)/2` lowest
+values of residuals into "Lower" groups, and the rest into "Upper"
+group.
 
 ```{r}
 resid_df <- data.frame(residuals = cig$residuals)
@@ -414,12 +473,17 @@ ggplot(
   theme_minimal()
 ```
 
-So far, we can see that the median and values of residuals in the upper group are greater than those in the lower group, however, their variance might not differ that much. 
-While residuals in the lower group tend to be below the median of their group, and residuals in the upper group tend t be above the median in their respective group, 
-absolute deviations do not appear so different in the two groups, at least visually. 
+So far, we can see that the median and values of residuals in the upper
+group are greater than those in the lower group, however, their variance
+might not differ that much. While residuals in the lower group tend to
+be below the median of their group, and residuals in the upper group
+tend t be above the median in their respective group, absolute
+deviations do not appear so different in the two groups, at least
+visually.
 
-So, we continue to perform transformations of residual data, mainly we find the median residual value in each group, and calculate absolute deviations. 
-Median residual values for two groups is given below: 
+So, we continue to perform transformations of residual data, mainly we
+find the median residual value in each group, and calculate absolute
+deviations. Median residual values for two groups is given below:
 
 ```{r}
 medians <- 
@@ -431,7 +495,7 @@ medians <-
 medians
 ```
 
-Now we take these values and apply them to resiuals data frame: 
+Now we take these values and apply them to resiuals data frame:
 
 ```{r}
 resid_df$absolute_deviation <- 
@@ -441,7 +505,7 @@ resid_df$absolute_deviation <-
   )
 ```
 
-Let's visually examine the absolute deviations: 
+Let's visually examine the absolute deviations:
 
 ```{r}
 ggplot(
@@ -453,10 +517,13 @@ ggplot(
   theme_minimal()
 ```
 
-Same conclusion as before, while the values themselves are quite different for the two groups, dispersion of values does not seem to differ between the two groups. 
+Same conclusion as before, while the values themselves are quite
+different for the two groups, dispersion of values does not seem to
+differ between the two groups.
 
-Next we find the T statistic. We need average deviations, sample sizes, and pooled variance. All calculations are given in code below, we formally defined all equations 
-in previous homework assignments. 
+Next we find the T statistic. We need average deviations, sample sizes,
+and pooled variance. All calculations are given in code below, we
+formally defined all equations in previous homework assignments.
 
 ```{r}
 
@@ -478,12 +545,16 @@ t_stat <-
     )
 ```
 
-We now have all needed data to state the hypotheses and give the conclusion. 
+We now have all needed data to state the hypotheses and give the
+conclusion.
 
-* Null Hypothesis: $H_0: \bar d_1 = \bar d_2$
-* Alternative Hypothesis: $H_0: \bar d_1 \neq \bar d_2$
-* Test T statistic: `r round(t_stat ,4)`
-* Cutoff T statistic value under $n-2$ = `r nrow(resid_df)-2` degrees of freedom is `r round(qt(1-.05/2, nrow(resid_df)-2) ,2)`
-* Test statistic does not exceed cutoff so we do not have enough statistical evidence to reject the null hypothesis. Therefore, we can not conclude that the variance of 
-residuals differs between the two groups. Therefore, there must be no deviation from the assumption of constant variance. 
-
+-   Null Hypothesis: $H_0: \bar d_1 = \bar d_2$
+-   Alternative Hypothesis: $H_0: \bar d_1 \neq \bar d_2$
+-   Test T statistic: `r round(t_stat ,4)`
+-   Cutoff T statistic value under $n-2$ = `r nrow(resid_df)-2` degrees
+    of freedom is `r round(qt(1-.05/2, nrow(resid_df)-2) ,2)`
+-   Test statistic does not exceed cutoff so we do not have enough
+    statistical evidence to reject the null hypothesis. Therefore, we
+    can not conclude that the variance of residuals differs between the
+    two groups. Therefore, there must be no deviation from the
+    assumption of constant variance.

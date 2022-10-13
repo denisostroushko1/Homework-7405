@@ -27,6 +27,14 @@ library(readxl)
 
 # 8.4
 
+In this problem we will look at two additive multiple linear models. We will fit the models, and look for variables 
+that are statistically associated with the calculated response variables. 
+
+We can fit the model, get the summary and look at p-values that come out from a t-test for each $\hat \beta_i$. 
+
+However, to stay aligned with PUBH 7405 material, we will perform an ANOVA test for the model first, and then 
+look at the individual t-test. Additionally, we will implement a Bonferroni, Holm, and Hockberg adjustments. 
+
 ```{r, echo  = F}
 e_cig_3 <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/E-CID-3.xlsx") 
 ```
@@ -47,24 +55,104 @@ e_cig_3$white <- as.factor(e_cig_3$white)
 e_cig_3$educ2 <- as.factor(e_cig_3$educ2)
 ```
 
-```{r, fig.height=3.5}
+```{r}
 
 ggplot(data = e_cig_3,
        aes(x = Y1)) +
   geom_histogram(binwidth = .1, color = "black", fill = "light blue") +
   theme_minimal() +
-  ylab("Count") +  xlab("Ratio of Final to Baseline NNAL Measurements") + ggtitle("Ratio of NNAL Measurements on the Natural Logarithmic Scale")
+  ylab("Count") +  
+  xlab("Ratio of Final to Baseline NNAL Measurements") + 
+  ggtitle("Ratio of NNAL Measurements on the Natural Logarithmic Scale")
 ```
 
-\newpage
+##### ANOVA Test for all predictors 
 
-Coefficients and other statistics from the multiple regression model are given in the table below. 
+We will conduct a One-Way ANOVA test here to see how good the model is at explaining variation in the response variable.
 
+For learning purposes, we will fit the models using built-in functions, and calculate the $F$ statistic by hand. 
+
+In R, we need to fit a model with no predictors, i.e. the one that just predicts/fits the average value of the 
+response for all observations in the data set. We then compare a model with more predictors to see if all coefficients 
+are equal to zero, or not.
+
+In the code chunk below we obtain the following estimates that we need to calculate $F$ statistic: 
+
+* we obtain $MSR$ and $MSE$ from $SSR$ and $SSE$ respectively. Residuals and Fitted Values come from fitted model using 
+  an R function
+
+* degrees on freedom in the numerator is the degrees of freedom of $MSR$, which is the number of predictors minus one 
+
+* degrees of freedom in the denominator is the degrees of freedom of $MSE$, which is the number of observations in the 
+  sample minus the number of predictors plus one 
+  
 ```{r}
 e_cig_3_model_data <-
   e_cig_3 %>% select(arm, age, gender, white, educ2, income30, FTND, Y1)
 
 model_8.4 <- lm(Y1 ~ ., data = e_cig_3_model_data)
+
+df_msr <- length(e_cig_3_model_data) - 1
+df_mse <- nrow(e_cig_3_model_data) - length(e_cig_3_model_data) 
+
+MSR <- sum((mean(e_cig_3_model_data$Y1) - model_8.4$fitted.values)^2)/ # this is SSR: (fitted - mean)^2
+            (df_msr) # this is DF = p - 1
+          
+MSE <- sum((e_cig_3_model_data$Y1 - model_8.4$fitted.values)^2)/ # this is SSE: (fitted - observed)^2
+            (df_mse) # this is DF = n - p
+
+F_stat <- MSR/MSE
+
+
+F_star <- qf(1-.05/2, df1 = df_msr, df2 = df_mse)
+
+P_F_star <- 1 - pf(F_stat, df1 = df_msr, df2 = df_mse)
+
+```
+
+Now we can conduct a test and see if all predictors are 0 or not. Test hypothesis and results are: 
+
+* Null Hypothesis: $H_0: \beta_0 = \beta_1 = ... = \beta_{p-1} = 0$
+
+* Alternative hypothesis: not all $\beta_i$ are 0
+
+* $F$- statistic: `r round(F_stat,2)` 
+
+* Cutoff $F^*$ statistic: `r round(F_star,2)` with $df(MSR) =$ `r df_msr`  and $df(MSE) =$ `r df_mse`
+
+* So, $F < F^*$, therefore, we do not reject the null hypothesis and we do not have enough evidence to conclude that 
+  coefficient estimates $\beta_i$ are statistically different from 0. 
+  
+* Additionally, $P(F^* > F) =$ `r round(P_F_star,3)`, which is kind of close to 0.05. So, when we do individual t-tests
+  for each estimate $\beta_i$ we will see that some of those coefficients are somewhat close to being significant, but 
+  we do not have enough data or a good enough model fit to detect any evidence that a given predictor is 
+  statistically related to the response variable 
+ 
+ 
+We can also check our work with the built in R function. We need to fit an "empty" model, that predicts/fits an 
+average value of $Y$ for each obserbation. Of course, we could also do it by hand. 
+
+```{r}
+
+empty <- lm(Y1 ~ 1, data = e_cig_3_model_data)
+
+anova_res <- data.frame(anova(empty, model_8.4))
+
+anova_res$model <- c("Empty Model", "Extended Model")
+
+anova_res <- anova_res %>% dplyr::select(model, everything())
+
+colnames(anova_res)[1] <- c("Model")
+
+anova_res %>% 
+  kbl(booktabs = T, align = 'c', centering = T) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+Coefficients and other statistics from the multiple regression model are given in the table below. 
+
+```{r}
 model_8.4_res <- summary(model_8.4)
 model_8.4_res_df <- data.frame(model_8.4_res$coefficients)
 model_8.4_res_df$var <- rownames(model_8.4_res_df)
@@ -81,6 +169,10 @@ model_8.4_res_df %>%
   kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
+
+As we can see, estimated calculated "by hand" align with the built in funcitons. 
+
+##### Summary of all coeffcients 
 
 Comments: 
 
