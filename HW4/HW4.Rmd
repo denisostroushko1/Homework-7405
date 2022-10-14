@@ -88,7 +88,7 @@ In the code chunk below we obtain the following estimates that we need to calcul
   
 ```{r}
 e_cig_3_model_data <-
-  e_cig_3 %>% select(arm, age, gender, white, educ2, income30, FTND, Y1)
+  e_cig_3 %>% select(age, gender, white, educ2, income30, FTND, Y1)
 
 model_8.4 <- lm(Y1 ~ ., data = e_cig_3_model_data)
 
@@ -112,7 +112,7 @@ P_F_star <- 1 - pf(F_stat, df1 = df_msr, df2 = df_mse)
 
 Now we can conduct a test and see if all predictors are 0 or not. Test hypothesis and results are: 
 
-* Null Hypothesis: $H_0: \beta_0 = \beta_1 = ... = \beta_{p-1} = 0$
+* Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1} = 0$
 
 * Alternative hypothesis: not all $\beta_i$ are 0
 
@@ -130,7 +130,7 @@ Now we can conduct a test and see if all predictors are 0 or not. Test hypothesi
  
  
 We can also check our work with the built in R function. We need to fit an "empty" model, that predicts/fits an 
-average value of $Y$ for each obserbation. Of course, we could also do it by hand. 
+average value of $Y$ for each observation. Of course, we could also do it by hand. 
 
 ```{r}
 
@@ -149,6 +149,10 @@ anova_res %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
+
+As we can see, estimated calculated "by hand" align with the built in funcitons. 
+
+##### Summary of all coeffcients 
 
 Coefficients and other statistics from the multiple regression model are given in the table below. 
 
@@ -169,10 +173,6 @@ model_8.4_res_df %>%
   kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
-
-As we can see, estimated calculated "by hand" align with the built in funcitons. 
-
-##### Summary of all coeffcients 
 
 Comments: 
 
@@ -225,10 +225,55 @@ ggplot(data = e_cig_3,
 
 ```
 
+We begin this section again with the overall ANOVA test for the entire model. We will fit the full model and the empty 
+model and conduct a built in ANOVA test. 
+
 ```{r}
+
 e_cig_3_model_data <-
-  e_cig_3 %>% select(arm, age, gender, white, educ2, income30, FTND, Y2)
+  e_cig_3 %>% select(age, gender, white, educ2, income30, FTND, Y2)
+
 model_8.4 <- lm(Y2 ~ ., data = e_cig_3_model_data)
+
+empty <- lm(Y2 ~ 1, data = e_cig_3_model_data)
+
+anova_res <- data.frame(anova(empty, model_8.4))
+
+anova_res$model <- c("Empty Model", "Extended Model")
+
+anova_res <- anova_res %>% dplyr::select(model, everything())
+
+colnames(anova_res)[1] <- c("Model")
+
+anova_res %>% 
+  kbl(booktabs = T, align = 'c', centering = T) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+Results of the one-way ANOVA are given in the table above. We will use these results to set up the test and interpret the 
+results. 
+
+* Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1}$
+
+* Alternative Hypothesis: $H_a:$ Not all coefficients $\beta_i$ are zero
+
+* $F-$statistic: `r anova(empty, model_8.4)$F[2]`
+
+* Cutoff $F^*$-statistic: `r qf(1-.05, df1 = length(e_cig_3_model_data) - 1, df2 = nrow(e_cig_3_model_data) - length(e_cig_3_model_data))`
+
+* So, $F < F^*$, therefore we do not have enough evidence to reject the null hypothesis to conclude that some or all 
+  coefficients $\beta_i$ are consistently different from zero. 
+  
+* Moreover, $P(F^* > F) =$ `r 1 - pf(anova(empty, model_8.4)$F[2], df1 = length(e_cig_3_model_data) - 1, df2 = nrow(e_cig_3_model_data) - length(e_cig_3_model_data))`, which is quite different from zero. Therefore, when we evaluate 
+a set of t-tests for each individual coefficient $\beta_i$ we should not expect to see any predictors that are 
+even close to being statistically significantly related to the response variable. 
+
+\newpage
+
+##### Summary of all coefficients
+
+```{r}
 model_8.4_res <- summary(model_8.4)
 model_8.4_res_df <- data.frame(model_8.4_res$coefficients)
 model_8.4_res_df$var <- rownames(model_8.4_res_df)
@@ -281,8 +326,8 @@ data.frame(
     )
   )
 
-data_9.3 %>% kbl() %>% 
-  kable_styling(latex_options = c("striped"))
+data_9.3 %>% kbl(booktabs = T) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
 
 res1 <- t(data_9.3$y) %*% data_9.3$y
 
