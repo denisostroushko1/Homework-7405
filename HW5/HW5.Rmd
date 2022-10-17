@@ -20,6 +20,13 @@ library(readxl)
 library(gridExtra)
 ```
 
+```{r, eval=F, echo = T}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+library(gridExtra)
+```
+
 # 10.2
 We enter the data below.
 
@@ -146,6 +153,7 @@ grid.arrange(g1, g2, nrow = 1)
 
 ```{r}
 cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
+colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
 ```
 
 ### 11.1 - A
