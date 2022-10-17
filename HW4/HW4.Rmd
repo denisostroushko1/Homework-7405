@@ -17,12 +17,14 @@ options(scipen=999)
 library(tidyverse)
 library(kableExtra)
 library(readxl)
+library(olsrr)
 ```
 
 ```{r, eval=F}
 library(tidyverse)
 library(kableExtra)
 library(readxl)
+library(olsrr)
 ```
 
 # 8.4
@@ -150,7 +152,7 @@ anova_res %>%
 
 ```
 
-As we can see, estimated calculated "by hand" align with the built in funcitons. 
+As we can see, estimated calculated "by hand" align with the built in functions. 
 
 ##### Summary of all coeffcients 
 
@@ -204,7 +206,6 @@ sum_income %>%
 
 * While the average response appears to be quite different between the two groups, other variables in the 
   multiple linear model might have an effect on this relationship. 
-
 
 ### 8.4 - B
 
