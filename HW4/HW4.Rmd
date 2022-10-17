@@ -330,16 +330,39 @@ data.frame(
 data_9.3 %>% kbl(booktabs = T) %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
+data_9.3$int <- 1
+
 res1 <- t(data_9.3$y) %*% data_9.3$y
 
-res2 <- t(data_9.3$x) %*% data_9.3$y
+res2 <- t(as.matrix(data_9.3 %>% dplyr::select(int, x))) %*% data_9.3$y
 
-res3 <- t(data_9.3$x) %*% data_9.3$x
+res3 <-  t(as.matrix(data_9.3 %>% dplyr::select(int, x))) %*%  as.matrix(data_9.3 %>% dplyr::select(int, x))
 
 ```
 
 * $Y`Y = res1 =$ `r res1`
 
-* $X`Y = res2 =$ `r res2`
+* In regression analysis $X$ is a matrix of all predictors AND an additional column full of ones, which we add to 
+the matrix in order to get the estimate for the intercept term. Thus, $X`$ is a $p \times n$ matrix (2 by 10 in our case) and
+$Y$ is a 10 by 1 vector. So, we obtain a 2 by 1 matrix $X`Y = res2 =$ 
 
-* $X`X = res3 =$ `r res3`
+```{r, echo = F}
+res2
+```
+
+* Matrix Explained: 
+   + The first entry in the matrix is the sum of all values of column(variable) Y in the data set, as presented above, and 
+      expressed as $\Sigma Y_i$
+   + The second variable is the linear combination of variables X and Y, we can represent it as $\Sigma X_i Y_i$
+
+* Similar reasoning applies here.  $X`X = res3 =$ 
+
+```{r, echo = F}
+res3
+```
+
+* Matrix Explained: 
+   + 10 represents the $N$ of the data set. 
+   + Entries off the main diagonal represent the sum of the X variable, $\Sigma X_i$
+   + `r sum(data_9.3$x^2)` is the sum of squared X terms, $\Sigma X_i^2$
+
