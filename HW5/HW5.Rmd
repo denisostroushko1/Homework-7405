@@ -9,7 +9,7 @@ editor_options:
 ---
 
 ```{r, echo = F}
-knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H", out.extra = "")
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
 options(scipen=999)
 ```
 
@@ -17,5 +17,141 @@ options(scipen=999)
 library(tidyverse)
 library(kableExtra)
 library(readxl)
+library(gridExtra)
 ```
+
+# 10.2
+We enter the data below.
+
+```{r}
+#put in the data 
+
+dose <- c(rep(5.76,3),
+          rep(9.6, 5), 
+          rep(16, 4), 
+          rep(32.4, 3), 
+          rep(54, 3), 
+          rep(90, 4), 
+          rep(150, 5))
+
+treat <- c(rep("Vitamin D3", 12), 
+           rep("Cod-liver Oil", 15))
+
+response <- c(33.5, 37.3, 33, 
+              36.2, 35.6, 36.7, 37, 39.5, 
+              41.6, 37.9, 40.5, 42,
+              32, 33.9, 30.2, 
+              32.6, 37.7, 36, 
+              35.7, 42.8, 38.9, 40.3, 
+              44, 43.3, 38.4, 44.2, 43.7)
+
+vit_data <- data.frame(dose, response, treat)
+```
+
+### 10.2 - A
+
+
+##### Original vs Logarithim Scales Regardless of Group
+
+```{r, fig.align='center', fig.width=13, echo=FALSE}
+
+g1 <- ggplot(data = vit_data, 
+             aes(x = dose, 
+                 y = response)) + 
+  
+  geom_point(aes(shape = treat)) +
+  geom_smooth(aes(color = "Smooth Trend Line"), se = F) + 
+  stat_smooth(aes(color = "Fitted Regression Line"), method = "lm", se = F) + 
+
+  scale_color_manual(
+    name = "Line Type", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")
+  ) +
+
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Original Scale")  + 
+  theme_minimal()
+
+g2 <- ggplot(data = vit_data, 
+             aes(x = log(dose), 
+                 y = response)) + 
+  geom_point(aes(shape = treat)) + 
+  geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = F, method = "lm", aes(color = "Fitted Regression Line")) + 
+  
+  scale_color_manual(
+    name = "Line Types", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red" )) + 
+      
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Logarithmic Scale") + 
+  theme_minimal()
+
+grid.arrange(g1, g2, nrow = 1)
+
+```
+
+for practice purpose, get a lack of fitness test 
+
+##### Original vs Logarithim Scales With Groups
+
+
+```{r, fig.align='center', fig.width=13, echo=FALSE}
+
+g1 <- ggplot(data = vit_data, 
+             aes(x = dose, 
+                 y = response, 
+                 group = treat)) + 
+  
+  geom_point() +
+  geom_smooth(aes(color = "Smooth Trend Line"), se = F) + 
+  stat_smooth(aes(color = "Fitted Regression Line"), method = "lm", se = F) + 
+
+  scale_color_manual(
+    name = "Line Type", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")
+  ) +
+
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Original Scale")  + 
+  theme_minimal()
+
+g2 <- ggplot(data = vit_data, 
+             aes(x = log(dose), 
+                 y = response, 
+                 group = treat)) + 
+  geom_point() + 
+  geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = F, method = "lm", aes(color = "Fitted Regression Line")) + 
+  
+  scale_color_manual(
+    name = "Line Types", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red" )) + 
+      
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Logarithmic Scale") + 
+  theme_minimal()
+
+grid.arrange(g1, g2, nrow = 1)
+
+```
+
+
+### 10.2 - B
+
+### 10.2 - C
+
+# 11.1 
+
+```{r}
+cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
+```
+
+### 11.1 - A
+
+### 11.1 - B
+
+### 11.1 - C
+
+### 11.1 - D
 
