@@ -1,0 +1,20 @@
+---
+title: "Homework 5"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: pdf_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H", out.extra = "")
+options(scipen=999)
+```
+
+```{r, include=F}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+```
