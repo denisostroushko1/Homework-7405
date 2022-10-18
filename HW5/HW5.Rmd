@@ -174,8 +174,8 @@ Using code in the chunk above, we get all the data and statistics to conduct a t
 
 * $P(F^* > F)=$ `r res[2,7]`
 
-* Conclusion: P-value is too close to 0.05. Therefore, we will reject the null hypothesis and conclude that respose, Y, can't be reasonably 
-  expressed as a linear combination of dose and treatment levels. We need a different model or differnt scales of predictors. 
+* Conclusion: P-value is too close to 0.05. Therefore, we will reject the null hypothesis and conclude that response, Y, can't be reasonably 
+  expressed as a linear combination of dose and treatment levels. We need a different model or different scales of predictors. 
 
 We can also see that the fit is bad on the graph below. When fitting the model with the common slope, there is too much error and variation around
 the regression line for Vitamin D3 doses. This is something that we can tie back to the initial scatter plot, where we saw that we need two 
@@ -222,7 +222,7 @@ ggplot(data = vit_data_p,
 
 ### Lack of Fit Test for Logarithmic-Dose-Scale Based Model
 
-Now we will consider a fit of response agaisnt treatment level and log-transformed doses. Again, we use `R` code to conduct the test and 
+Now we will consider a fit of response against treatment level and log-transformed doses. Again, we use `R` code to conduct the test and 
 evaluate hypotheses. 
 
 ```{r}
@@ -305,7 +305,7 @@ ggplot(data = vit_data_p,
 
 From the lecture notes we know that parallel-line assays are those in which the response is linearly related to the log dose. 
 If the response is linearly related to log dose, then the coefficient should be statistically different from 0. Using a model from the 
-previous section, we can validate this. Looking at the summary table for the model, we can conduct a statistical test for the coeffifient of 
+previous section, we can validate this. Looking at the summary table for the model, we can conduct a statistical test for the coefficient of 
 log-dose. 
 
 ```{r, echo = F}
@@ -365,7 +365,7 @@ rel_pot <- coefficients(full_lm)[3] / coefficients(full_lm)[2]
 ## 10.2 - D
 
 Formula for variance and standard error of the estimate is much bigger, and requires that we obtain more estimates from the model. 
-We save down  $\hat \beta_1$ and $\hat \beta_2$ using the model we fit and used in the previous sections. Also, using thsi model we ontain a 
+We save down  $\hat \beta_1$ and $\hat \beta_2$ using the model we fit and used in the previous sections. Also, using this model we obtain a 
 variance-covariance matrix for the estimates. Code chunk below obtains and saves all estimates that we need. 
 
 ```{r}
@@ -374,7 +374,7 @@ beta_1 <- coefficients(full_lm)[2]
 beta_2 <- coefficients(full_lm)[3]
 
 var_beta_1 <- vcov(full_lm)[2,2] # beta_1 variance 
-var_beta_2 <- vcov(full_lm)[3,3] # beta_2 varinace 
+var_beta_2 <- vcov(full_lm)[3,3] # beta_2 variance 
 
 cov_beta_12 <- vcov(full_lm)[2,3] #covariance of beta_1 and beta_2 
 
@@ -406,7 +406,7 @@ So, $Var(m)=$ `r round(Var_m,5)`, and the standard error is $se(m) = \sqrt{Var(m
 
 # 11.1 
 
-```{r}
+```{r, echo = F}
 cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
 colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
 
@@ -415,36 +415,42 @@ cig <- cig %>% dplyr::select(nnal, cpd, age, gender )
 
 ## 11.1 - A
 
-We need: 
+In order to decompose SSR into Extra Sum of Squares we will do in sequence, fitting models one by one and calculating SSR along the way. 
+We need the following components: 
 
-* Full Regression $SSR(CPD, Age, Gender)$ and $df = 3$
+* Full Regression SSR, that involves all 3 predictors: $SSR(CPD, Age, Gender)$ and $df = p-1 = 4-1 =3$
 
-* $SSR(CPD)$ and $df = 1$
+* $SSR(CPD)$ and $df = p_{cpd} - 1 = 2- 1= 1$, because we have two model estimates that helped us obtain this SSR
 
-* $SSR(Age|CPD)$ and $df = 1$
-
-* $SSR(Gender|CPD, Age)$ and $df = 1$
+* $SSR(Age|CPD)$ and $df = 1$, for one extra predictor that we include 
+  + $SSR(Age|CPD) = SSR(Age, CPD) - SSR(CPD)$
+    
+* $SSR(Gender|CPD, Age)$ and $df = 1$, again, for the extra predictor 
+  + $SSR(Gender|CPD, Age) = SSR(Age, CPD, Gender) - SSR(Age, CPD)$ 
+  
+Code below shows how we fit models one and by and save down SSR and Extra SSR along the way
 
 ```{r}
 full_model <- lm(nnal ~ cpd + age + gender, data = cig)
-SSR_full <- sum((mean(cig$nnal) - full_model$fitted.values)^2)
+SSR_full <- sum((mean(cig$nnal) - full_model$fitted.values)^2) # full regression SSR 
 
 cpd_model <- lm(nnal ~ cpd, data = cig)
-SSR_cpd <- sum((mean(cig$nnal) - cpd_model$fitted.values)^2)
+SSR_cpd <- sum((mean(cig$nnal) - cpd_model$fitted.values)^2) # SSR(X_1)
 
 age_model <- lm(nnal ~ age, data = cig)
-SSR_age <- sum((mean(cig$nnal) - age_model$fitted.values)^2)
+SSR_age <- sum((mean(cig$nnal) - age_model$fitted.values)^2) # SSR(X_2)
 
 cpd_age_model <- lm(nnal ~ cpd + age, data = cig)
-SSR_cpd_age <- sum((mean(cig$nnal) - cpd_age_model$fitted.values)^2)
+SSR_cpd_age <- sum((mean(cig$nnal) - cpd_age_model$fitted.values)^2) # (SSR X_1, X_2)
 
-SSR_age_given_cpd <- SSR_cpd_age - SSR_cpd
-SSR_cpd_given_age <- SSR_cpd_age - SSR_age
+SSR_age_given_cpd <- SSR_cpd_age - SSR_cpd # SSR(X_2 | X_1)
+SSR_cpd_given_age <- SSR_cpd_age - SSR_age # SSR(X_1 | X_2)
 
-SSR_gender_given_cpd_age <- SSR_full - SSR_cpd_age
+SSR_gender_given_cpd_age <- SSR_full - SSR_cpd_age # SSR(X_3 | X_1, X_2) = SSR(X_3 | X_2, X_1)
 
 ```
 
+We also save down residual sum of squares and total sum of errors 
 
 ```{r}
 
@@ -454,7 +460,11 @@ SSTO <- sum((mean(cig$nnal) - cig$nnal)^2)
 
 ```
 
-```{r}
+\newpage
+
+And we finally can put together a table that we will use later in the analysis
+
+```{r, echo=F}
 anova_tab <- 
   data.frame(
     Source = c("CPD + Age + Gender", "CPD", "Age|CPD", "Gender|Age, CPD", "Residual Error", "Total Error"), 
@@ -473,6 +483,22 @@ anova_tab %>%
   pack_rows("Error", 5, 6)
 ```
 
+We can also double check our calculation using a build in `anova()` function. 
+
+```{r}
+anova_built_in <- data.frame(anova(full_model))
+anova_built_in$Variable <- c("CPD", "Age", "Gender", "Residuals")
+
+rownames(anova_built_in) <- NULL
+
+anova_built_in <- anova_built_in %>% select(Variable, everything())
+
+anova_built_in %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+```
+
+As we can see, Sum of Squares and Mean Square, match with the table that we have produced
 
 ## 11.1 - B
 
@@ -520,7 +546,12 @@ sum_data %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
-* Conclusion: 
+* Note how test statistic $F$ equals squared $t$ statistic from the model summary table above. P-value for the t-test also matches a p-value 
+from the F-test that we conducted, which is obviously to be expected. 
+
+* Conclusion: Since p-value is above 0.05, we can not reject the Null hypothesis and conclude that the coefficient for gender is statistically 
+  different from 0. Therefore, we also can not conclude that the inclusion of gender into the model
+  after cpd and age meaningfully contributes to the proportion of the variation in NNAL values that the model is explains. 
 
 ## 11.1 - C
 
@@ -536,7 +567,7 @@ SSR_age_gender_given_cpd = SSR_full - SSR_cpd
 
 * $F$ - statistic is then:
 
-$$\large \frac{\frac{SSR(Gender, Age|CPD)}{2}}{\frac{SSE(Gender, Age, CPD)}{n-4}}$$
+$$\Large \frac{\frac{SSR(Gender, Age|CPD)}{2}}{\frac{SSE(Gender, Age, CPD)}{n-4}}$$
 Hypothesis and test results are given below: 
 
 * Null Hypothesis: $H_0: \hat \beta_{gender} = \hat \beta_{age} = 0$
@@ -546,6 +577,10 @@ Hypothesis and test results are given below:
 * $F-$ statistic: `r round((SSR_age_gender_given_cpd/2)/(SSE/(nrow(cig)-4)), 4)`
 
 * $P(F^* > F) =$ `r 1 - pf((SSR_age_gender_given_cpd/1)/(SSE/(nrow(cig)-4)), 1, nrow(cig)-4)`
+
+* Conclusion: the p-value is close to 0.05, but still twice as big as our accepted confidence level. Therefore, we do not have enough 
+  evidence to conclude that the inclusion of both age and gender after cpd meaningfully contributes to the proportion of variation of 
+  the response variable that are able to explain.
 
 ## 11.1 - D
 
@@ -563,14 +598,13 @@ For example, in this problem we have
 
 * Now we can show that 
 
-  $SSR(X_2|X_1) + SSR(X_1)  = $
+  $SSR(X_2|X_1) + SSR(X_1)  =$
   
   `r SSR_age_given_cpd` + `r SSR_cpd` = 
   
   `r SSR_age` + `r SSR_cpd_given_age` = 
   
   $SSR(X_1|X_2) + SSR(X_2)$
-  
   
   
   
