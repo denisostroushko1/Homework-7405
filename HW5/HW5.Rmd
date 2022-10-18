@@ -2,14 +2,16 @@
 title: "Homework 5"
 author: "Denis Ostroushko"
 date: "`r Sys.Date()`"
-output: pdf_document
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
 editor_options: 
   markdown: 
     wrap: 72
 ---
 
 ```{r, echo = F}
-knitr::opts_chunk$set(echo = T, message = F, warning = F)
+knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H")
 options(scipen=999)
 ```
 
@@ -18,6 +20,7 @@ library(tidyverse)
 library(kableExtra)
 library(readxl)
 library(gridExtra)
+library(ggeffects)
 ```
 
 ```{r, eval=F, echo = T}
@@ -25,6 +28,7 @@ library(tidyverse)
 library(kableExtra)
 library(readxl)
 library(gridExtra)
+library(ggeffects)
 ```
 
 # 10.2
@@ -57,53 +61,11 @@ vit_data <- data.frame(dose, response, treat)
 
 ### 10.2 - A
 
+#### Visual Examination of Dose Scale Against Respose
 
-##### Original vs Logarithim Scales Regardless of Group
+asd f gasg sfd
 
-```{r, fig.align='center', fig.width=13, echo=FALSE}
-
-g1 <- ggplot(data = vit_data, 
-             aes(x = dose, 
-                 y = response)) + 
-  
-  geom_point(aes(shape = treat)) +
-  geom_smooth(aes(color = "Smooth Trend Line"), se = F) + 
-  stat_smooth(aes(color = "Fitted Regression Line"), method = "lm", se = F) + 
-
-  scale_color_manual(
-    name = "Line Type", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")
-  ) +
-
-  xlab("Experimental Dose") + 
-  ylab("Response") + 
-  ggtitle("Response vs Dose \n on the Original Scale")  + 
-  theme_minimal()
-
-g2 <- ggplot(data = vit_data, 
-             aes(x = log(dose), 
-                 y = response)) + 
-  geom_point(aes(shape = treat)) + 
-  geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
-  stat_smooth(se = F, method = "lm", aes(color = "Fitted Regression Line")) + 
-  
-  scale_color_manual(
-    name = "Line Types", values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red" )) + 
-      
-  xlab("Experimental Dose") + 
-  ylab("Response") + 
-  ggtitle("Response vs Dose \n on the Logarithmic Scale") + 
-  theme_minimal()
-
-grid.arrange(g1, g2, nrow = 1)
-
-```
-
-for practice purpose, get a lack of fitness test 
-
-##### Original vs Logarithim Scales With Groups
-
-
-```{r, fig.align='center', fig.width=13, echo=FALSE}
+```{r, fig.align='center', echo=FALSE}
 
 g1 <- ggplot(data = vit_data, 
              aes(x = dose, 
@@ -121,7 +83,10 @@ g1 <- ggplot(data = vit_data,
   xlab("Experimental Dose") + 
   ylab("Response") + 
   ggtitle("Response vs Dose \n on the Original Scale")  + 
-  theme_minimal()
+  theme_minimal() + 
+  theme(legend.position="bottom", 
+        legend.title = element_text(size = 8), 
+        legend.text = element_text(size = 6))
 
 g2 <- ggplot(data = vit_data, 
              aes(x = log(dose), 
@@ -137,30 +102,439 @@ g2 <- ggplot(data = vit_data,
   xlab("Experimental Dose") + 
   ylab("Response") + 
   ggtitle("Response vs Dose \n on the Logarithmic Scale") + 
-  theme_minimal()
+  theme_minimal() + 
+  theme(legend.position="bottom", 
+        legend.title = element_text(size = 8), 
+        legend.text = element_text(size = 6))
 
 grid.arrange(g1, g2, nrow = 1)
 
 ```
 
+asfvseg
+
+#### Lack of Fit Test for Original-Dose-Scale Based Model
+
+sdfg sdf g 
+
+```{r}
+reduced <- lm(response ~ dose + treat, data = vit_data)
+full <- lm(response ~ 0 + as.factor(dose) + treat,data = vit_data)
+
+res <- data.frame(anova(reduced, full) )
+
+res$name <- c("Linear Fit","Within Group Fit")
+
+res <- res %>% dplyr::select(name, everything())
+
+colnames(res)[1] <- "Model Type"
+
+res %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+```
+
+* Overall, Dose and Treatment explain `r paste0(round(summary(reduced)$r.squared, 4) * 100, "%")` of variation in response 
+  measurements 
+
+* Null Hypothesis: $H_0: E[Y] = \beta_0 + \beta_1 * Dose + \beta_2 * Treatment$
+
+* Alternative Hypothesis: $H_a: E[Y] \neq \beta_0 + \beta_1 * Dose + \beta_2 * Treatment$
+
+* Test Statistic: $F=$ `r round(res$F[2], 4)`
+
+* $P(F^* > F)=$ `r res[2,7]`
+
+* Conclusion: 
+
+Visualization of bad fit 
+
+```{r, echo=F}
+
+my_pred <- ggpredict(reduced, terms = c("dose", "treat"))
+
+obs <- vit_data %>% 
+  select(dose, treat) %>% unique() %>% 
+  rename('group' = 'treat', 
+          'x' = 'dose')
+  
+my_pred <- 
+  my_pred %>% 
+  inner_join(obs, by = c('group', 'x'))
+        
+vit_data_p <- 
+  vit_data %>% 
+    rename(
+      'x' = 'dose', 
+      'group' = 'treat', 
+      'predicted' = 'response'
+    )
+        
+ggplot(data = vit_data_p, 
+             aes(x = x, 
+                 y = predicted, 
+                 group = group, 
+                 shape = group)) + 
+  
+  geom_point()+
+  
+  geom_line(data = my_pred, aes(x = x, y = predicted, color = group)) + 
+  
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Original Scale")  + 
+  theme_minimal()
+
+```
+
+* Observations
+
+#### Lack of Fit Test for Logarithmic-Dose-Scale Based Model
+
+
+```{r}
+vit_data$log_dose <- log(vit_data$dose)
+
+reduced <- lm(response ~ log_dose + treat, data = vit_data)
+full <- lm(response ~ 0 + as.factor(log_dose) + treat,data = vit_data)
+
+res <- data.frame(anova(reduced, full) )
+
+res$name <- c("Linear Fit","Within Group Fit")
+
+res <- res %>% dplyr::select(name, everything())
+
+colnames(res)[1] <- "Model Type"
+
+res %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+```
+
+* Overall, Log - Dose and Treatment explain `r paste0(round(summary(reduced)$r.squared, 4) * 100, "%")` of variation in response 
+  measurements 
+  
+* Null Hypothesis: $H_0: E[Y] = \beta_0 + \beta_1 * Log - Dose + \beta_2 * Treatment$
+
+* Alternative Hypothesis: $H_a: E[Y] \neq \beta_0 + \beta_1 * Log - Dose + \beta_2 * Treatment$
+
+* Test Statistic: $F=$ `r round(res$F[2], 4)`
+
+* $P(F^* > F)=$ `r res[2,7]`
+
+* Conclusion: 
+
+Fitted Lines from the log based model 
+
+```{r, echo  = F}
+
+my_pred <- ggpredict(reduced, terms = c("log_dose", "treat"))
+
+obs <- vit_data %>% 
+  select(dose, treat) %>% unique() %>% 
+  rename('group' = 'treat', 
+          'x' = 'dose') %>% 
+
+  mutate(x = log(x))
+  
+my_pred <- 
+  my_pred %>% 
+  inner_join(obs, by = c('group', 'x'))
+        
+vit_data_p <- 
+  vit_data %>% 
+    rename(
+      'x' = 'dose', 
+      'group' = 'treat', 
+      'predicted' = 'response'
+    )
+        
+ggplot(data = vit_data_p, 
+             aes(x = log(x), 
+                 y = predicted, 
+                 group = group, 
+                 shape = group)) + 
+  
+  geom_point()+
+  
+  geom_line(data = my_pred, aes(x = x, y = predicted, color = group)) + 
+  
+  xlab("Experimental Dose") + 
+  ylab("Response") + 
+  ggtitle("Response vs Dose \n on the Logarithmic Scale")  + 
+  theme_minimal()
+```
+
+*Observations 
+
 ### 10.2 - B
 
-  
+fit the multiple linear regression 
+
+**FROM SLIDES** Parallel-line assays are those in which the response is linearly related to the log dose
+
+So, the lines are parallel if the response is related to the log dose 
+
+response is related if coefficient for log dose is not 0 
+
+```{r}
+
+vit_data$treat <- factor(vit_data$treat , levels = c("Vitamin D3", "Cod-liver Oil"))
+
+full_lm <- lm(response ~ log(dose) + treat, data = vit_data)
+
+sum_data <- data.frame(summary(full_lm)$coefficients)
+
+sum_data$names <- c("Intercept", "Log - Dose", "Cod - Liver Oil Treatment")
+
+rownames(sum_data) <- NULL
+
+sum_data <- sum_data %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum_data[,2:5] <- lapply(sum_data[,2:5], round_3)
+
+colnames(sum_data) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+
+
+sum_data %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+* Null Hypothesis: $\hat \beta_{log-dose} = 0$
+
+* Alternative Hypothesis: $\hat \beta_{log-dose} \neq 0$
+
+* Test Statistic: `r sum_data[2,4]`
+
+* $P(t^* > t)=$ `r sum_data[2,5]`
+
+* Conclusion:  
+
 
 ### 10.2 - C
+
+```{r}
+rel_pot <- coefficients(full_lm)[3] / coefficients(full_lm)[2]
+```
+
+* $\hat \beta_1 =$ `r round(coefficients(full_lm)[2], 2)`
+
+* $\hat \beta_2 =$ `r round(coefficients(full_lm)[3], 2)`
+
+* Relative potency = $m = log [p] = \frac{\hat \beta_2}{\hat \beta_1}$ = `r round(rel_pot, 4)`
+
+### 10.2 - D
+
+save all needed estimates from the model 
+
+```{r}
+
+beta_1 <- coefficients(full_lm)[2]
+beta_2 <- coefficients(full_lm)[3]
+
+var_beta_1 <- vcov(full_lm)[2,2] # beta_1 variance 
+var_beta_2 <- vcov(full_lm)[3,3] # beta_2 varinace 
+
+cov_beta_12 <- vcov(full_lm)[2,3] #covariance of beta_1 and beta_2 
+
+```
+
+Slide 17
+
+$$\Large Var(m) = \frac{\hat \beta_2^2}{\hat \beta_1^4} \times Var(\hat \beta_1) + 2(-\frac{\hat \beta_2}{\hat \beta_1^2}) \times  (\frac{1}{\hat \beta_1}) \times Cov(\hat \beta_1, \hat \beta_2) + \frac{1}{\hat \beta_1^2} \times Var(\hat \beta_2)$$
+For this calculation we have the following estimates: 
+
+* $\hat \beta_1 = b_1 =$ `r round(beta_1, 5)`
+
+* $\hat \beta_2 = b_2 =$ `r round(beta_2, 5)`
+
+* $Var(\hat \beta_1) = Var(b_1) =$ `r round(var_beta_1, 5)`
+
+* $Var(\hat \beta_2) = Var(b_2) =$ `r round(var_beta_2, 5)`
+
+* $Cov(\hat \beta_1, \hat \beta_2) = Cov(b_1, b_2) =$ `r round(cov_beta_12, 5)`
+
+```{r}
+Var_m <- 
+  (beta_2 ^ 2)/(beta_1 ^ 4) * var_beta_1 + 
+    2 * (-1) * (beta_2 / beta_1^2 ) * (1/beta_1) * cov_beta_12 + (1/(beta_1^2)) * var_beta_2
+```
+
+So, $Var(m)=$ `r round(Var_m,5)`, and the standard error is $se(m) = \sqrt{Var(m)}=$ `r round(sqrt(Var_m),5)`
 
 # 11.1 
 
 ```{r}
 cig <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Cigarettes.xls")
 colnames(cig) <- c("age", "gender", "cpd", "carbon_mono", "cotinine", "nnal")
+
+cig <- cig %>% dplyr::select(nnal, cpd, age, gender )
 ```
 
 ### 11.1 - A
 
+We need: 
+
+* Full Regression $SSR(CPD, Age, Gender)$ and $df = 3$
+
+* $SSR(CPD)$ and $df = 1$
+
+* $SSR(Age|CPD)$ and $df = 1$
+
+* $SSR(Gender|CPD, Age)$ and $df = 1$
+
+```{r}
+full_model <- lm(nnal ~ cpd + age + gender, data = cig)
+SSR_full <- sum((mean(cig$nnal) - full_model$fitted.values)^2)
+
+cpd_model <- lm(nnal ~ cpd, data = cig)
+SSR_cpd <- sum((mean(cig$nnal) - cpd_model$fitted.values)^2)
+
+age_model <- lm(nnal ~ age, data = cig)
+SSR_age <- sum((mean(cig$nnal) - age_model$fitted.values)^2)
+
+cpd_age_model <- lm(nnal ~ cpd + age, data = cig)
+SSR_cpd_age <- sum((mean(cig$nnal) - cpd_age_model$fitted.values)^2)
+
+SSR_age_given_cpd <- SSR_cpd_age - SSR_cpd
+SSR_cpd_given_age <- SSR_cpd_age - SSR_age
+
+SSR_gender_given_cpd_age <- SSR_full - SSR_cpd_age
+
+```
+
+
+```{r}
+
+SSE <- sum(full_model$residuals^2)
+
+SSTO <- sum((mean(cig$nnal) - cig$nnal)^2)
+
+```
+
+```{r}
+anova_tab <- 
+  data.frame(
+    Source = c("CPD + Age + Gender", "CPD", "Age|CPD", "Gender|Age, CPD", "Residual Error", "Total Error"), 
+    SS = c(SSR_full, SSR_cpd, SSR_age_given_cpd, SSR_gender_given_cpd_age, SSE, SSTO), 
+    DF = c(3,1,1,1,nrow(cig)-4,nrow(cig)-1)
+  )
+
+anova_tab$MS <- anova_tab$SS / anova_tab$DF
+
+anova_tab$MS[6] <- NA
+
+anova_tab %>% 
+  kbl(booktabs = T) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  pack_rows("Extra SS", 2, 4) %>% 
+  pack_rows("Error", 5, 6)
+```
+
+
 ### 11.1 - B
+
+To test we need to get a few values for the F statistic
+
+* We already have extra sum of squares $SSR(Gender|CPD, Age)$
+
+* We also have $SSE(Gender, Age, CPD)$ 
+
+* $F$ - statistic is then:
+
+$$\large \frac{\frac{SSR(Gender|CPD, Age)}{1}}{\frac{SSE(Gender, Age, CPD)}{n-4}}$$
+Hypothesis and test results are given below: 
+
+* Null Hypothesis: $H_0: \hat \beta_{gender} = 0$
+
+* Alternative  Hypothesis: $H_0: \hat \beta_{gender} \neq 0$
+
+* $F-$ statistic: `r round((SSR_gender_given_cpd_age/1)/(SSE/(nrow(cig)-4)), 4)`
+
+* $P(F^* > F) =$ `r 1 - pf((SSR_gender_given_cpd_age/1)/(SSE/(nrow(cig)-4)), 1, nrow(cig)-4)`
+
+* For comparison, here is a model summary that provides a t-test for Gender covariate:
+
+```{r, echo = F}
+full_lm <- lm(nnal ~ cpd + age + gender, data = cig)
+
+sum_data <- data.frame(summary(full_lm)$coefficients)
+
+sum_data$names <- c("Intercept", "CPD", "Age", "Gender")
+
+rownames(sum_data) <- NULL
+
+sum_data <- sum_data %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum_data[,2:5] <- lapply(sum_data[,2:5], round_3)
+
+colnames(sum_data) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+
+
+sum_data %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+* Conclusion: 
 
 ### 11.1 - C
 
+To test we need to get a few values for the F statistic
+
+* We already have extra sum of squares $SSR(Gender, Age|CPD) = SSR(Age, Gender, CPD) - SSR(CPD)$
+
+```{r, echo = F}
+SSR_age_gender_given_cpd = SSR_full - SSR_cpd
+```
+
+* We also have $SSE(Gender, Age, CPD)$ 
+
+* $F$ - statistic is then:
+
+$$\large \frac{\frac{SSR(Gender, Age|CPD)}{2}}{\frac{SSE(Gender, Age, CPD)}{n-4}}$$
+Hypothesis and test results are given below: 
+
+* Null Hypothesis: $H_0: \hat \beta_{gender} = \hat \beta_{age} = 0$
+
+* Alternative  Hypothesis: $H_a: \hat \beta_{gender} and \hat \beta_{age}$ are not all 0
+
+* $F-$ statistic: `r round((SSR_age_gender_given_cpd/2)/(SSE/(nrow(cig)-4)), 4)`
+
+* $P(F^* > F) =$ `r 1 - pf((SSR_age_gender_given_cpd/1)/(SSE/(nrow(cig)-4)), 1, nrow(cig)-4)`
+
 ### 11.1 - D
+
+Yes, it is always the case, because the order of the variables is arbitrary. 
+
+For example, in this problem we have 
+
+* $SSR(X_1) = SSR(CPD)$ = `r SSR_cpd`
+
+* $SSR(X_2) = SSR(Age)$ = `r SSR_age`
+
+* $SSR(X_2|X_1) = SSR(Age|CPD) =$ `r SSR_age_given_cpd`
+
+* $SSR(X_1|X_2) = SSR(CPD|Age) =$ `r SSR_cpd_given_age`
+
+* Now we can show that 
+
+  $SSR(X_2|X_1) + SSR(X_1)  = $
+  
+  `r SSR_age_given_cpd` + `r SSR_cpd` = 
+  
+  `r SSR_age` + `r SSR_cpd_given_age` = 
+  
+  $SSR(X_1|X_2) + SSR(X_2)$
+  
+  
+  
+  
+
+
 
