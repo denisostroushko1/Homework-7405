@@ -306,7 +306,7 @@ ggplot(data = vit_data_p,
 From the lecture notes we know that parallel-line assays are those in which the response is linearly related to the log dose. 
 If the response is linearly related to log dose, then the coefficient should be statistically different from 0. Using a model from the 
 previous section, we can validate this. Looking at the summary table for the model, we can conduct a statistical test for the coefficient of 
-log-dose. 
+log-dose.  
 
 ```{r, echo = F}
 
@@ -345,6 +345,24 @@ sum_data %>%
 * Conclusion:  P-value is less than 0.05, so we reject the null hypothesis in favor of the alternative hypothesis. We have enough statistical 
 evidence to conclude that the response is linearly related to the log-dose variables. 
 
+We can also test if the lines are indeed parallel. The two lines are parallel if they have the same slope, 
+which we verified with the previous test, and if they have two different intercepts, i.e. they are indeed two 
+different lines. 
+
+We conduct this test using an estimate for the indicator variable, also obtained from the same model we used 
+from the previous test. 
+
+* Null Hypothesis: $\hat \beta_{treatment} = 0$
+
+* Alternative Hypothesis: $\hat \beta_{treatment} \neq 0$
+
+* Test Statistic: `r sum_data[3,4]`
+
+* $P(t^* > t)=$ `r sum_data[3,5]`
+
+* Conclusion: P-value is less than 0.05, so we reject the null hypothesis in favor of the alternative hypothesis. We have enough statistical 
+evidence to conclude that the two lines are indeed parallel becuase they have coefficients that are statistically 
+significantly different. 
 
 ## 10.2 - C
 
