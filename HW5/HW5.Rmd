@@ -303,6 +303,11 @@ ggplot(data = vit_data_p,
 
 ## 10.2 - B
 
+For clarity, we specify the model again: 
+
+$$\large E[Y] = \beta_0 + \beta_1 * Log - Dose + \beta_2 * Treatment$$
+We will use this model to conduct the parallel - line assays analysis.
+
 From the lecture notes we know that parallel-line assays are those in which the response is linearly related to the log dose. 
 If the response is linearly related to log dose, then the coefficient should be statistically different from 0. Using a model from the 
 previous section, we can validate this. Looking at the summary table for the model, we can conduct a statistical test for the coefficient of 
