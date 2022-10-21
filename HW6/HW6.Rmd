@@ -1,0 +1,542 @@
+---
+title: "Homework 6"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H")
+options(scipen=999)
+```
+
+```{r, include=F}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+library(gridExtra)
+library(ggeffects)
+library(mltools) # one hot encoding outside of caret package 
+library(data.table) # need this for mltools to work 
+```
+
+```{r, eval=F}
+library(tidyverse)
+library(kableExtra)
+library(readxl)
+library(gridExtra)
+library(ggeffects)
+library(mltools) # one hot encoding outside of caret package 
+library(data.table) # need this for mltools to work 
+```
+
+
+# 12.2 
+
+```{r}
+infants <- readxl::read_xls('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Infants.xls')
+
+colnames(infants) <- c("head_c", "length", "gest_weeks", "birth_w", "m_age", "toxemia")
+
+# process the data and keep variables for analysis 
+
+infants_f <- infants %>% 
+  select(birth_w, gest_weeks, m_age)
+
+```
+
+```{r, echo = F}
+# look at the correlation between age and age^2 
+ggplot(data = infants_f, 
+       aes(x = m_age, 
+           y = m_age^2 )) + geom_point() + 
+  
+  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
+  
+  xlab("Age") + 
+  ylab("Age Squared") + 
+  ggtitle(paste("Correlation: ", round(cor(infants_f$m_age, infants_f$m_age^2),4))) + 
+  theme_minimal()
+
+```
+
+## 12.2 - A
+
+### Model Specifications and T-tests
+
+```{r, echo = F}
+ggplot(data = infants_f, 
+       aes(x = m_age, 
+           y = birth_w)) + geom_point() + 
+  
+  stat_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = F, method = "lm", aes(color = "Regression Line")) + 
+  
+  scale_color_manual(values = c("Smooth Trend Line" = "blue", 
+                                "Regression Line" = "red")) + 
+  xlab("Mother's Age") + 
+  ylab("Infant's Birth Weight") + 
+  ggtitle(paste("Correlation Between Mother's Age  \n and Infant's Birth Weight: ", 
+                round(cor(infants_f$m_age, 
+                          infants_f$birth_w), 4))) + 
+  theme_minimal()
+
+```
+
+Model specification: 
+
+$$\Large E[Y] = \hat \beta_0 + \hat \beta_1 * Gestional \ Weeks + \hat \beta_2 * Mother's \ Age + \hat \beta_3 * Mother's \ Age ^ 2$$
+Model Summary 
+
+```{r, echo = F}
+inf_lm <- lm(birth_w ~ gest_weeks + m_age + I(m_age^2), data = infants_f)
+
+sum_data <- data.frame(summary(inf_lm)$coefficients)
+
+sum_data$names <- c("Intercept", "Gestational Weeks", "Mother's Age", "Mother's Age Squared")
+
+rownames(sum_data) <- NULL
+
+sum_data <- sum_data %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum_data[,2:5] <- lapply(sum_data[,2:5], round_3)
+
+colnames(sum_data) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+sum_data %>% 
+  kbl(booktabs = T, align = c('l', 'c','c','c','c')) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+Comemnts on Model summary: 
+
+* R and Adjusted R: `r round(summary(inf_lm)$r.squared,4)` 
+`r round(summary(inf_lm)$adj.r.squared,4) `
+
+* Coefficients for Age and Age ^ 2
+
+### Evaluate Extra Sum of Squares
+
+Focus: Evaluate SSR(Age^2 | Gest, Age)
+
+```{r, echo = F}
+anv <- data.frame(anova(inf_lm) )
+
+anv$names <- c("Gestational Weeks", "Mother's Age", "Mother's Age Squared", "Residuals")
+rownames(anv) <- NULL
+anv <- anv %>% select(names, everything())
+
+colnames(anv) <- c("Model Term", "DF", "SS", "MS", "F-statistic", "P(F* > F)")
+
+anv[,length(anv)] <- round(anv[,length(anv)], 4)
+
+anv %>% 
+  kbl(booktabs = T, align = c('l', rep('c', length(anv)-1)) ) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  row_spec(nrow(anv)-1, hline_after = T)
+
+```
+
+```{r, echo = F}
+# R^2 (m age | gest weeks )
+lm_2 <- lm(birth_w ~ gest_weeks + m_age, data = infants_f)
+ssr_2 <- sum( (lm_2$fitted.values - mean(infants_f$birth_w) )^2 )
+
+# R^2 (m age ^2  | m age, gest weeks )
+lm_3 <- lm(birth_w ~ gest_weeks + m_age + I(m_age^2), data = infants_f)
+
+sse_2 <- sum(lm_2$residuals^2)
+ssr_3 <- sum( (lm_3$fitted.values - mean(infants_f$birth_w) )^2 )
+
+Rs_3 <- (ssr_3 - ssr_2) /sse_2
+
+```
+
+* Extra SS
+
+* Extra R^2 
+
+* Connection with the t-test 
+
+### Visualize Model Effects
+
+```{r, echo = F }
+mydf <- ggpredict(inf_lm, terms = "m_age")
+
+mean_name <- paste0("Birth Weight Mean Value: ", round(mean(infants_f$birth_w)))
+
+ggplot(mydf, aes(x, predicted)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = .1) + 
+  theme_minimal() + 
+  geom_hline( 
+             aes(yintercept = mean(infants_f$birth_w),color = mean_name)
+             ) + 
+  guides(color=guide_legend(title="Additional Elements: ")) + 
+  theme(
+    legend.position = "bottom"
+  ) + 
+  
+  ylab("Predicted Values of Birth Weight") + 
+  xlab("Mother's Age") + 
+  ggtitle("Model Estiamted Effects of Mother's Age on \n Infant's Birth Weight")
+  
+
+```
+
+* Comment on Standard Error and fit, we can fit a line with slope = +
+
+### Interpretation of Mother's Age Coefficients 
+
+From google, interpretation of the quadratic coefficient: 
+
+"
+A positive quadratic coefficient causes the ends of the parabola to point upward. A negative quadratic coefficient causes the ends of the parabola to point downward. The greater the quadratic coefficient, the narrower the parabola. The lesser the quadratic coefficient, the wider the parabola."
+
+https://stats.stackexchange.com/questions/108657/how-to-interpret-coefficients-of-x-and-x2-in-same-regression
+
+It may be useful to describe the effect of a unit change at some low value, some high value and somewhere in between.
+
+## 12.2 - B
+
+Correlation Transformation for variables $Y, X_1, ..., X_{p-1}$, denoted by $V$: 
+
+$$\Large V^* = \frac{1}{\sqrt{n - 1}} \times \Big (\frac{V - \bar V}{sd(V)} \Big )$$
+```{r}
+
+correlation_transformation <- 
+  function(X, n = nrow(infants_f_cor_tr)){
+    
+    1/(sqrt(n - 1)) * (X - mean(X))/sd(X)
+    
+  }
+
+infants_f$m_age_sq <- infants_f$m_age^2
+infants_f_cor_tr <- infants_f
+
+infants_f_cor_tr <- data.frame(lapply(infants_f_cor_tr, correlation_transformation))
+```
+
+```{r, echo = F}
+cor_tr_lm <- lm(birth_w ~ . , data = infants_f_cor_tr)
+sum2 <- data.frame(summary(cor_tr_lm)$coefficients)
+
+sum2$names <- c("Intercept", "Gestational Weeks", "Mother's Age", "Mother's Age Squared")
+
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+kbl(sum_data, booktabs = T, caption = "Original Scale Regression Estimates") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+kbl(sum2, booktabs = T, caption = "Correlation  Transformation Regression Estimates") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+* intercept is zero as expected in corr transformed 
+
+* P-values are different for m age 
+
+* Same conclusions apply 
+
+## 12.2 - C
+
+Transformation back to the original scale: 
+
+For variables $X_1, ..., X_{p-1}$: 
+
+$$\Large \hat \beta_i =  \hat \beta^*_i \times \frac{sd(Y)}{sd(X_i)}$$
+```{r}
+transform_back <-
+  function(Beta_star, s_x, s_y){
+    Beta_star * (s_y / s_x)
+  }
+
+S_Y <- sd(infants_f$birth_w)
+```
+
+Hid code to prepare the table. 
+
+```{r, echo = F}
+check_res <- 
+  data.frame(
+    names = c("Gestation Weeks", "Mother's Age", "Mother's Age Squared"), 
+    betas = c(transform_back(sum2[2,2], s_x = sd(infants_f$gest_weeks), s_y = S_Y),
+              transform_back(sum2[3,2], s_x = sd(infants_f$m_age), s_y = S_Y),
+              transform_back(sum2[4,2], s_x = sd(infants_f$m_age_sq), s_y = S_Y)
+              ), 
+    ci_l = c(transform_back(confint(cor_tr_lm)[2,1], s_x = sd(infants_f$gest_weeks), s_y = S_Y),
+              transform_back(confint(cor_tr_lm)[3,1], s_x = sd(infants_f$m_age), s_y = S_Y),
+              transform_back(confint(cor_tr_lm)[4,1], s_x = sd(infants_f$m_age_sq), s_y = S_Y)
+              ),
+    ci_h = c(transform_back(confint(cor_tr_lm)[2,2], s_x = sd(infants_f$gest_weeks), s_y = S_Y),
+              transform_back(confint(cor_tr_lm)[3,2], s_x = sd(infants_f$m_age), s_y = S_Y),
+              transform_back(confint(cor_tr_lm)[4,2], s_x = sd(infants_f$m_age_sq), s_y = S_Y)
+              )
+  )
+
+```
+
+
+recall the the original model with the transformed variables was called `inf_lm`. Used it for Extra SS,
+t-tests and model effects. We can obtain standard errors and confidence intervals for the estimates
+to compare with the transformation back from the correlation transformation procedure. 
+
+```{r}
+conf <- data.frame(confint(inf_lm)) # just the confidence intervals 
+conf <- cbind(coefficients(inf_lm), conf )
+```
+
+```{r, echo=F}
+conf$names <- c("Intercept", "Gestation Weeks", "Mother's Age", "Mother's Age Squared")
+rownames(conf) <- NULL
+
+conf <- conf %>% select(names, everything())
+
+colnames(conf) <- c("Model Term", "Coefficient", "95% C.I. Lower Bound", "95% C.I. Upper Bound")
+
+round_3 <- function(x){round(x,3)}
+conf[,2:4] <- sapply(conf[, 2:4], round_3)
+
+conf %>% filter(`Model Term` != "Intercept" ) %>% 
+  kbl(align = c('l', rep('c', length(conf)-1)), booktabs =  T, 
+      caption = "Original Model Estiamtes and C.I.") %>% 
+  kable_styling(latex_options = c("HOLD_posiiton", "striped")) 
+
+```
+
+```{r, echo = F}
+
+colnames(check_res) <- c("Model Term", "Coefficient", "95% C.I. Lower Bound", "95% C.I. Upper Bound")
+
+check_res[,2:4] <- lapply(check_res[,2:4], round_3)
+
+check_res %>% filter(`Model Term` != "Intercept" ) %>% 
+  kbl(align = c('l', rep('c', length(conf)-1)), booktabs =  T, 
+      caption = "Estimaes obtained via \n Back-Trnasformation and C.I.") %>% 
+  kable_styling(latex_options = c("HOLD_posiiton", "striped")) 
+```
+
+so we can use linear transformations 
+good to know 
+
+# 13.4 
+
+```{r}
+cig <- read_xlsx('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/E-CID-3.xlsx')
+
+cig$Y1 <- with(cig, log(NNAL_vt4_creat / NNAL_vt0_creat))
+cig$Y2 <- with(cig, log(TNE_vt4_creat / TNE_vt0_creat))
+
+cig <- cig %>% 
+  select(Y1, Y2, arm, age, gender, white, educ2, income30, FTND)
+
+colnames(cig)[length(cig)] <- "ftnd"
+```
+
+## 13.4 - A
+
+* Arm will result in 4 -1 variables 
+
+* Age is untouched 
+
+* FTND is treated as continuous 
+
+* Others need to be converted to factor variables 
+
+```{r}
+cig <- cig %>% select(
+  Y1, Y2, age, arm, gender, white, educ2, income30, ftnd
+)
+
+cig$arm <- as.factor(cig$arm)
+
+cig <- data.frame(one_hot(as.data.table(cig))) %>% select(-arm_5)
+
+cig[,6:length(cig)] <- lapply(cig[,6:length(cig)], as.factor)
+```
+
+```{r}
+n_unique <- function(x){length(unique(x))}
+
+meta_data <- 
+  
+  data.frame(
+    class = sapply(cig, class), 
+    n_unique = sapply(cig, n_unique)
+  )
+```
+
+```{r, echo = F}
+
+meta_data$name <- rownames(meta_data)
+
+rownames(meta_data) <- NULL
+
+meta_data <- meta_data %>% filter(!(name %in% c("Y1", "Y2")))
+
+meta_data <- 
+  meta_data %>% select(name, everything())
+  
+colnames(meta_data) <- c("Predictors", "Assigned Class", "N of Unique Values")
+
+meta_data %>% 
+  kbl(caption = "Sumamry of Covariates",
+       booktabs = T, align = c("l", 'c', 'c')) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+nrow(meta_data)
+```
+
+## 13.4 - B
+
+### Regression on Y1 
+
+```{r}
+y1_lm1 <- lm(Y1 ~ ., data = cig %>% select(-Y2))
+summary(y1_lm1)
+```
+
+```{r}
+sum2 <- data.frame(summary(y1_lm1)$coefficients)
+
+sum2$names <- c("Intercept", "Arm 6", "Arm 7", "Arm 8", 
+                "Age", "Gender", "White")
+
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+kbl(sum_data, booktabs = T, caption = "Original Scale Regression Estimates") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+* Bonferroni Adjustments 
+
+* HOLM Adjustments 
+
+* Hochberg Adjustments
+
+### Regression on Y2 
+
+```{r}
+y2_lm1 <- lm(Y2 ~ ., data = cig %>% select(-Y1))
+summary(y2_lm1)
+```
+
+* Bonferroni Adjustments 
+
+* HOLM Adjustments 
+
+* Hochberg Adjustments
+
+## 13.4 - C
+
+### Step Wise Regression on Y1 
+
+### Step Wise Regression on Y1 
+
+# Appendix: 12.2 
+
+
+```{r}
+# look at the correlation between age and age^2 
+ggplot(data = infants_f, 
+       aes(x = m_age, 
+           y = m_age^2 )) + geom_point() + 
+  
+  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
+  
+  xlab("Age") + 
+  ylab("Age Squared") + 
+  ggtitle(paste("Correlation: ", round(cor(infants_f$m_age, infants_f$m_age^2),4))) + 
+  theme_minimal()
+
+
+# now apply centering: 
+
+infants_f$m_age_centered <- with(infants_f, m_age - mean(m_age))
+infants_f$gest_weeks_centered <- with(infants_f, gest_weeks - mean(gest_weeks))
+
+ggplot(data = infants_f, 
+       aes(x = m_age_centered, 
+           y = m_age_centered^2 )) + geom_point() +  
+  
+  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
+  
+  xlab("Age") + 
+  ylab("Age Squared") + 
+  ggtitle(paste("Correlation: ", round(cor(infants_f$m_age_centered, infants_f$m_age_centered^2),4))) + 
+  theme_minimal()
+
+```
+
+
+```{r}
+ggplot(data = infants_f, 
+       aes(x = m_age, 
+           y = birth_w)) + geom_point() + 
+  
+  stat_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = F, method = "lm", aes(color = "Regression Line")) + 
+  
+  scale_color_manual(values = c("Smooth Trend Line" = "blue", 
+                                "Regression Line" = "red")) + 
+  xlab("Mother's Age") + 
+  ylab("Infant's Birth Weight") + 
+  ggtitle(paste("Correlation Between Mother's Age  \n and Infant's Birth Weight: ", 
+                round(cor(infants_f$m_age, 
+                          infants_f$birth_w), 4))) + 
+  theme_minimal()
+  
+ggplot(data = infants_f, 
+       aes(x = m_age_centered, 
+           y = birth_w)) + geom_point() + 
+  
+  stat_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = F, method = "lm", aes(color = "Regression Line")) + 
+  
+  scale_color_manual(values = c("Smooth Trend Line" = "blue", 
+                                "Regression Line" = "red")) + 
+  xlab("Mother's Age") + 
+  ylab("Infant's Birth Weight") + 
+  ggtitle(paste("Correlation Between Centered Mother's Age  \n and Infant's Birth Weight: ", 
+                round(cor(infants_f$m_age_centered, 
+                          infants_f$birth_w), 4))) + 
+  theme_minimal()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
