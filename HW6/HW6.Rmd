@@ -360,15 +360,16 @@ colnames(cig)[length(cig)] <- "ftnd"
 * Others need to be converted to factor variables 
 
 ```{r}
+
 cig <- cig %>% select(
-  Y1, Y2, age, arm, gender, white, educ2, income30, ftnd
+  Y1, Y2, age, arm, gender, educ2, income30, ftnd
 )
 
 cig$arm <- as.factor(cig$arm)
 
 cig <- data.frame(one_hot(as.data.table(cig))) %>% select(-arm_5)
 
-cig[,6:length(cig)] <- lapply(cig[,6:length(cig)], as.factor)
+cig[,4:(length(cig)-1)] <- lapply(cig[,4:(length(cig)-1)], as.factor)
 ```
 
 ```{r}
@@ -412,7 +413,7 @@ y1_lm1 <- lm(Y1 ~ ., data = cig %>% select(-Y2))
 summary(y1_lm1)
 ```
 
-```{r}
+```{r, eval = F}
 sum2 <- data.frame(summary(y1_lm1)$coefficients)
 
 sum2$names <- c("Intercept", "Arm 6", "Arm 7", "Arm 8", 
