@@ -16,6 +16,9 @@ options(scipen=999)
 ```
 
 ```{r, include=F}
+library(MASS) # for stepwise regression
+  # pro tip: load MASS before tidyverse, otherwise it really messes with select() and other essential data wrangling 
+  # function 
 library(tidyverse)
 library(kableExtra)
 library(readxl)
@@ -23,9 +26,13 @@ library(gridExtra)
 library(ggeffects)
 library(mltools) # one hot encoding outside of caret package 
 library(data.table) # need this for mltools to work 
+library(olsrr) #another package for stepwise regression 
 ```
 
 ```{r, eval=F}
+library(MASS) # for stepwise regression
+  # pro tip: load MASS before tidyverse, otherwise it really messes with select() and other essential data wrangling 
+  # function 
 library(tidyverse)
 library(kableExtra)
 library(readxl)
@@ -33,6 +40,7 @@ library(gridExtra)
 library(ggeffects)
 library(mltools) # one hot encoding outside of caret package 
 library(data.table) # need this for mltools to work 
+library(olsrr) #another package for stepwise regression 
 ```
 
 
@@ -47,22 +55,6 @@ colnames(infants) <- c("head_c", "length", "gest_weeks", "birth_w", "m_age", "to
 
 infants_f <- infants %>% 
   select(birth_w, gest_weeks, m_age)
-
-```
-
-```{r, echo = F}
-# look at the correlation between age and age^2 
-ggplot(data = infants_f, 
-       aes(x = m_age, 
-           y = m_age^2 )) + geom_point() + 
-  
-  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
-  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
-  
-  xlab("Age") + 
-  ylab("Age Squared") + 
-  ggtitle(paste("Correlation: ", round(cor(infants_f$m_age, infants_f$m_age^2),4))) + 
-  theme_minimal()
 
 ```
 
@@ -85,6 +77,22 @@ ggplot(data = infants_f,
   ggtitle(paste("Correlation Between Mother's Age  \n and Infant's Birth Weight: ", 
                 round(cor(infants_f$m_age, 
                           infants_f$birth_w), 4))) + 
+  theme_minimal()
+
+```
+
+```{r, echo = F}
+# look at the correlation between age and age^2 
+ggplot(data = infants_f, 
+       aes(x = m_age, 
+           y = m_age^2 )) + geom_point() + 
+  
+  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
+  
+  xlab("Age") + 
+  ylab("Age Squared") + 
+  ggtitle(paste("Correlation: ", round(cor(infants_f$m_age, infants_f$m_age^2),4))) + 
   theme_minimal()
 
 ```
@@ -192,7 +200,7 @@ ggplot(mydf, aes(x, predicted)) +
 
 ```
 
-* Comment on Standard Error and fit, we can fit a line with slope = +
+* Comment on Standard Error and fit, we can fit a line with slope =
 
 ### Interpretation of Mother's Age Coefficients 
 
@@ -401,23 +409,24 @@ meta_data %>%
        booktabs = T, align = c("l", 'c', 'c')) %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
-nrow(meta_data)
+n_predictors <- nrow(meta_data)
 ```
 
 ## 13.4 - B
 
 ### Regression on Y1 
 
+ add model specification 
+ 
 ```{r}
-y1_lm1 <- lm(Y1 ~ ., data = cig %>% select(-Y2))
-summary(y1_lm1)
+y1_lm1 <- lm(Y1 ~ . - Y2, data = cig )
 ```
 
-```{r, eval = F}
+```{r , echo = F}
 sum2 <- data.frame(summary(y1_lm1)$coefficients)
 
-sum2$names <- c("Intercept", "Arm 6", "Arm 7", "Arm 8", 
-                "Age", "Gender", "White")
+sum2$names <- c("Intercept", "Age", "Arm 6", "Arm 7", "Arm 8", 
+                "Gender", "Education", "Income >= $30K", "FTND")
 
 rownames(sum2) <- NULL
 
@@ -428,34 +437,383 @@ sum2[,2:5] <- lapply(sum2[,2:5], round_3)
 
 colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
 
-kbl(sum_data, booktabs = T, caption = "Original Scale Regression Estimates") %>% 
+kbl(sum2, booktabs = T, caption = "Original Scale Regression Estimates") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
 * Bonferroni Adjustments 
 
+    + $P-value = 0.05$
+    
+    + $Bonferroni \ adjusted \ P-value =$ `r round(0.05 / n_predictors, 4)`
+
+corrected p-value = p-value / number of predictors 
+
+```{r}
+sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
+sum_bonf_adj$`Significant at Adj. Level` = 
+  with(sum_bonf_adj, 
+       ifelse(`P-value` < 0.05 / n_predictors , "*", "")
+       )
+
+sum_bonf_adj %>% 
+  kbl( booktabs = T, caption = "Regression of Y1 Bonferroni Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(3, width = "2cm")
+
+```
+
 * HOLM Adjustments 
 
+    + order p-values smallest to largest 
+    + if first p-value if smaller than $0.05 / 8 =$ `r round(0.05 / n_predictors, 4)` then 
+      conclude significance, and move to next predictor, otherwise stop, none are significant 
+      
+    + next predictor will be tested at $0.05 / 7 =$ `r round(0.05 / (n_predictors-1), 4)`
+
+```{r}
+
+holm_data <- 
+  sum2 %>% select(`Model Term`, `P-value`) %>% arrange(`P-value`) %>% 
+  filter(`Model Term` != "Intercept")
+  
+holm_data$`Comparison P-value` <- 1
+holm_data$`Significant at Adj. Level` <- ""
+
+cur_adj_n <- n_predictors
+
+for(i in 1:nrow(holm_data)){
+  
+  cur_level <- 0.05 / cur_adj_n
+  holm_data[i,3] <- cur_level
+  
+  if(holm_data[i,2] <= cur_level ){
+    cur_adj_n <- cur_adj_n - 1
+    holm_data[i,3] <- cur_level
+    holm_data[i,4] <- "*"
+  }
+}
+
+holm_data[,2:3] <- lapply(holm_data[,2:3], round_3)
+
+holm_data %>% 
+  kbl( booktabs = T, caption = "Regression of Y1 HOLM Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(c(3,4), width = "2cm")
+
+```
+
 * Hochberg Adjustments
+
+    + Sort P-values largest to smallest 
+    + Compare the largest to $0.05$, if significant, declare all significant
+    + Otherwise, compare the next one to $0.05/2 = 0.025$
+    + Keep comparing to $0.05/3$, $0.05/4$, etc.. until we find a comparison where 
+
+    
+```{r}
+
+hoch_data <- 
+  sum2 %>% select(`Model Term`, `P-value`) %>% arrange(-`P-value`) %>% 
+  filter(`Model Term` != "Intercept")
+
+hoch_data$`Comparison P-value` <- 0.05
+hoch_data$`Significant at Adj. Level` <- ""
+
+cur_adj_n <- 1
+
+for(i in 1:nrow(hoch_data)){
+  
+  cur_level <- 0.05 / cur_adj_n
+  hoch_data[i,3] <- cur_level
+ 
+  if(hoch_data[i,2] > cur_level){
+    cur_adj_n <- cur_adj_n + 1
+    
+    holm_data[i,3] <- cur_level
+  }
+}
+
+hoch_data[,4] <- ifelse(hoch_data[,2] < hoch_data[,3], "*", "")
+
+hoch_data[,2:3] <- lapply(hoch_data[,2:3], round_3)
+
+hoch_data %>% 
+  kbl( booktabs = T, caption = "Regression of Y1 HOCHBERG Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(c(3,4),  width = "2cm")
+
+```
+
+* SUMMARY OF COEFFICIENT SELECTION FOR Y1 REGRESSION 
 
 ### Regression on Y2 
 
 ```{r}
-y2_lm1 <- lm(Y2 ~ ., data = cig %>% select(-Y1))
-summary(y2_lm1)
+y2_lm1 <- lm(Y2 ~ . - Y1, data = cig )
+```
+
+```{r , echo = F}
+sum2 <- data.frame(summary(y2_lm1)$coefficients)
+
+sum2$names <- c("Intercept", "Age", "Arm 6", "Arm 7", "Arm 8", 
+                "Gender", "Education", "Income >= $30K", "FTND")
+
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+kbl(sum2, booktabs = T, caption = "Original Scale Regression Estimates") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
 * Bonferroni Adjustments 
 
+```{r}
+sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
+sum_bonf_adj$`Significant at Adj. Level` = 
+  with(sum_bonf_adj, 
+       ifelse(`P-value` < 0.05 / n_predictors , "*", "")
+       )
+
+sum_bonf_adj %>% 
+  kbl( booktabs = T, caption = "Regression of Y2 Bonferroni Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(3, width = "2cm")
+
+```
+
 * HOLM Adjustments 
 
+```{r}
+
+holm_data <- 
+  sum2 %>% select(`Model Term`, `P-value`) %>% arrange(`P-value`) %>% 
+  filter(`Model Term` != "Intercept")
+  
+holm_data$`Comparison P-value` <- 1
+holm_data$`Significant at Adj. Level` <- ""
+
+cur_adj_n <- n_predictors
+
+for(i in 1:nrow(holm_data)){
+  
+  cur_level <- 0.05 / cur_adj_n
+  holm_data[i,3] <- cur_level
+  
+  if(holm_data[i,2] <= cur_level ){
+    cur_adj_n <- cur_adj_n - 1
+    holm_data[i,3] <- cur_level
+    holm_data[i,4] <- "*"
+  }
+}
+
+holm_data[,2:3] <- lapply(holm_data[,2:3], round_3)
+
+holm_data %>% 
+  kbl( booktabs = T, caption = "Regression of Y2 HOLM Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(c(3,4), width = "2cm")
+
+```
+
 * Hochberg Adjustments
+    
+```{r}
+
+hoch_data <- 
+  sum2 %>% select(`Model Term`, `P-value`) %>% arrange(-`P-value`) %>% 
+  filter(`Model Term` != "Intercept")
+
+hoch_data$`Comparison P-value` <- 0.05
+hoch_data$`Significant at Adj. Level` <- ""
+
+cur_adj_n <- 1
+
+for(i in 1:nrow(hoch_data)){
+  
+  cur_level <- 0.05 / cur_adj_n
+  hoch_data[i,3] <- cur_level
+ 
+  if(hoch_data[i,2] > cur_level){
+    cur_adj_n <- cur_adj_n + 1
+    
+    holm_data[i,3] <- cur_level
+  }
+}
+
+hoch_data[,4] <- ifelse(hoch_data[,2] < hoch_data[,3], "*", "")
+
+hoch_data[,2:3] <- lapply(hoch_data[,2:3], round_3)
+
+hoch_data %>% 
+  kbl( booktabs = T, caption = "Regression of Y2 HOCHBERG Adjusted Comparison") %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(c(3,4),  width = "2cm")
+
+```
 
 ## 13.4 - C
 
 ### Step Wise Regression on Y1 
 
-### Step Wise Regression on Y1 
+comment that we have 2^8 possible models, and these are candidates for the best possible model 
+
+```{r}
+k <- ols_step_best_subset(y1_lm1)
+
+k %>% dplyr::select(n, predictors) %>% 
+  kbl(booktabs = T, 
+      caption = "Regression of Y1, Best Candidate Models") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+```{r, echo = F}
+g1 <- 
+  ggplot(data = k, 
+         aes(x = n, y = adjr)) + geom_point(size = 1) + 
+    geom_line(color = "blue") + 
+    theme_minimal() + 
+  xlab("Model Index") + 
+  ylab("Adjusted R-square") +
+  ggtitle("Regression of Y1, \n Adjusted R-square for \n Candidate Models")
+
+g2 <- 
+  ggplot(data = k, 
+         aes(x = n, y = aic)) + geom_point(size = 1) + 
+    geom_line(color = "blue")+ 
+    theme_minimal() + 
+  xlab("Model Index") + 
+  ylab("AIC") +
+  ggtitle("Regression of Y1, \n AIC for Candidate Models")
+
+grid.arrange(g1, g2, nrow = 1)
+```
+
+```{r, echo = F}
+
+k <- data.frame(k)
+
+k_f <- 
+  k %>% filter(n == 3) %>% 
+  dplyr::select(predictors, rsquare, adjr, aic)
+
+colnames(k_f) <- c("Predictors", "R-squared", "Adj. R-squared", "AIC")
+
+k_f[,2:4] <- lapply(k_f[,2:4], round_3)
+
+k_f %>% 
+  kbl(caption = "Regression of Y1, Parameters of Selected Model", 
+      booktabs = T)
+
+```
+
+```{r, echo = F}
+y1_lm1_step <- stepAIC(y1_lm1, direction = "both", 
+                      trace = FALSE)
+```
+
+
+```{r, echo = F}
+sum2 <- data.frame(summary(y1_lm1_step)$coefficients)
+
+sum2$names <- c("Intercept", "Arm 6",  "Arm 8","Income >= $30K")
+
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+kbl(sum2, booktabs = T, caption = "") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+### Step Wise Regression on Y2
+
+
+```{r}
+k <- ols_step_best_subset(y2_lm1)
+
+k %>% dplyr::select(n, predictors) %>% 
+  kbl(booktabs = T, 
+      caption = "Regression of Y2, Best Candidate Models") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+```{r, echo = F}
+g1 <- 
+  ggplot(data = k, 
+         aes(x = n, y = adjr)) + geom_point(size = 1) + 
+    geom_line(color = "blue") + 
+    theme_minimal() + 
+  xlab("Model Index") + 
+  ylab("Adjusted R-square") +
+  ggtitle("Regression of Y2, \n Adjusted R-square for \n Candidate Models")
+
+g2 <- 
+  ggplot(data = k, 
+         aes(x = n, y = aic)) + geom_point(size = 1) + 
+    geom_line(color = "blue")+ 
+    theme_minimal() + 
+  xlab("Model Index") + 
+  ylab("AIC") +
+  ggtitle("Regression of Y2, \n AIC for Candidate Models")
+
+grid.arrange(g1, g2, nrow = 1)
+```
+
+```{r, echo = F}
+
+k <- data.frame(k)
+
+k_f <- 
+  k %>% filter(n == 2) %>% 
+  dplyr::select(predictors, rsquare, adjr, aic)
+
+colnames(k_f) <- c("Predictors", "R-squared", "Adj. R-squared", "AIC")
+
+k_f[,2:4] <- lapply(k_f[,2:4], round_3)
+
+k_f %>% 
+  kbl(caption = "Regression of Y1, Parameters of Selected Model", 
+      booktabs = T)
+
+```
+
+```{r, echo = F}
+y2_lm1_step <- stepAIC(y2_lm1, direction = "both", 
+                      trace = FALSE)
+
+sum2 <- data.frame(summary(y2_lm1_step)$coefficients)
+
+sum2$names <- c("Intercept", "Arm 7", "Income >= $30K")
+
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+kbl(sum2, booktabs = T, caption = "") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+\newpage 
 
 # Appendix: 12.2 
 
