@@ -16,39 +16,36 @@ options(scipen=999)
 ```
 
 ```{r, include=F}
-library(MASS) # for stepwise regression
-  # pro tip: load MASS before tidyverse, otherwise it really messes with select() and other essential data wrangling 
-  # function 
-library(tidyverse)
+library(MASS)
+require(tidyverse) # require instead of library to make sure that other packages do not overwrite tidyverse packages 
 library(kableExtra)
 library(readxl)
 library(gridExtra)
 library(ggeffects)
 library(mltools) # one hot encoding outside of caret package 
 library(data.table) # need this for mltools to work 
-library(olsrr) #another package for stepwise regression 
+library(olsrr) # a better package for stepwise regression 
 ```
 
 ```{r, eval=F}
-library(MASS) # for stepwise regression
-  # pro tip: load MASS before tidyverse, otherwise it really messes with select() and other essential data wrangling 
-  # function 
-library(tidyverse)
+library(MASS)
+require(tidyverse) # require instead of library to make sure that other packages do not overwrite tidyverse packages 
 library(kableExtra)
 library(readxl)
 library(gridExtra)
 library(ggeffects)
 library(mltools) # one hot encoding outside of caret package 
 library(data.table) # need this for mltools to work 
-library(olsrr) #another package for stepwise regression 
+library(olsrr) # a better package for stepwise regression 
 ```
-
 
 # 12.2 
 
-```{r}
+```{r, echo=F}
 infants <- readxl::read_xls('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Infants.xls')
+```
 
+```{r}
 colnames(infants) <- c("head_c", "length", "gest_weeks", "birth_w", "m_age", "toxemia")
 
 # process the data and keep variables for analysis 
@@ -62,12 +59,16 @@ infants_f <- infants %>%
 
 ### Model Specifications and T-tests
 
+Before fitting the model, we wish to investigate the relationship between mother's age and infant's
+birth weight. Since the problem asks us to fit the model with age squared, we will have a second order polynomial relationship. We will look at the scatter plot to find any visual evidence that such 
+model is justifiable. 
+
 ```{r, echo = F}
 ggplot(data = infants_f, 
        aes(x = m_age, 
            y = birth_w)) + geom_point() + 
   
-  stat_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+  stat_smooth(se = T, aes(color = "Smooth Trend Line")) + 
   stat_smooth(se = F, method = "lm", aes(color = "Regression Line")) + 
   
   scale_color_manual(values = c("Smooth Trend Line" = "blue", 
@@ -81,14 +82,28 @@ ggplot(data = infants_f,
 
 ```
 
+We can see that we should fit the plynomial regression model because the smooth line shows a 
+curved relationship between the two variables. However, the confidence bound around the smooth line 
+suggest that potentially we may be able to fit a straight, first order, line in order to predict 
+infant's birth weight. Overall, it is not very clear to what the verdict is, so we will fit the 
+model with a higher order term and will use statistical tests to verify contribution of the squared 
+term. Pearson's linear correlation estimate is low, so we should not expect to see string statistical 
+evidence that mother's age is a strong predictor for infant's birth weight. 
+
+It is known that inclusion of higher order terms introduces multicollinearity issue to the model, which is hard to handle, and affects confidence intervals for predictors. Normally, we wish to 
+perform another transformation of variables called *centering* in order to reduce the degree of 
+linear correlation between the linear and higher order terms, however, I decided to include that 
+into the appendix. 
+
+The plot below shows correlation between age and age squared. 
+
 ```{r, echo = F}
 # look at the correlation between age and age^2 
 ggplot(data = infants_f, 
        aes(x = m_age, 
            y = m_age^2 )) + geom_point() + 
   
-  stat_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
-  scale_color_manual(values = c("Fitted Regression Line" = "red")) + 
+  stat_smooth(method = "lm", se = F, color = "red") +
   
   xlab("Age") + 
   ylab("Age Squared") + 
@@ -97,10 +112,16 @@ ggplot(data = infants_f,
 
 ```
 
-Model specification: 
+Since the two variables are almost perfectly correlated, we expect that estimate for the standard 
+error of $\hat \beta_i$ are higher in the model with no centering transformation applied. We verify
+it in the appendix section. 
+
+We are now ready to fit the model and explore the contribution of age-squared term. Model 
+specification: 
 
 $$\Large E[Y] = \hat \beta_0 + \hat \beta_1 * Gestional \ Weeks + \hat \beta_2 * Mother's \ Age + \hat \beta_3 * Mother's \ Age ^ 2$$
-Model Summary 
+
+We obtain model the estimates from the model and present them in the table below: 
 
 ```{r, echo = F}
 inf_lm <- lm(birth_w ~ gest_weeks + m_age + I(m_age^2), data = infants_f)
@@ -119,17 +140,38 @@ sum_data[,2:5] <- lapply(sum_data[,2:5], round_3)
 colnames(sum_data) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
 
 sum_data %>% 
-  kbl(booktabs = T, align = c('l', 'c','c','c','c')) %>% 
+  kbl(booktabs = T, align = c('l', 'c','c','c','c'), 
+      caption = "Polymonial Regression Estimates") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
 
-Comemnts on Model summary: 
+Comments: 
 
-* R and Adjusted R: `r round(summary(inf_lm)$r.squared,4)` 
-`r round(summary(inf_lm)$adj.r.squared,4) `
+* R-squared is `r round(summary(inf_lm)$adj.r.squared,4) ` and Adjusted R-squared is `r round(summary(inf_lm)$r.squared,4)` 
 
-* Coefficients for Age and Age ^ 2
+* The number of gestational weeks is an extremely strong predictor of the infant's birth weight. 
+  Each additional week add an average of `r sum_data[2,2]` units of measurement (not sure what they 
+  are in this problem) to infant's birth weight 
+
+* Both linear are quadratic terms for mother's age are not statistically significant, and therefore 
+  we do not have enough evidence to reject the null hypothesis and conclude that the coefficients 
+  for these predictors are statistically different from zero. 
+  
+* An addition of a quadratic term turns the effect of age on birth weight from a straight line to the 
+  parabola. We can use estimates of the linear and quadratic terms to describe the shape of this 
+  parabola. 
+  
+  + A positive quadratic coefficient causes the ends of the parabola to point upward. A negative   
+      quadratic coefficient causes the ends of the parabola to point downward. The greater the       
+      quadratic coefficient, the narrower the parabola. The lesser the quadratic coefficient, the    
+      wider the parabola. 
+      
+  + In our case the coefficient is `r sum_data[4,2]`, so the effect can 
+      be visualized as a wide downward-pointing parabola. 
+      
+  + A very wide parabola usualyy does not indicate a strong effect, and visually it should apprear 
+    closer to a straight line with a zero linear coefficient. 
 
 ### Evaluate Extra Sum of Squares
 
@@ -193,7 +235,7 @@ ggplot(mydf, aes(x, predicted)) +
     legend.position = "bottom"
   ) + 
   
-  ylab("Predicted Values of Birth Weight") + 
+  ylab("Estimated Effect") + 
   xlab("Mother's Age") + 
   ggtitle("Model Estiamted Effects of Mother's Age on \n Infant's Birth Weight")
   
@@ -345,9 +387,11 @@ good to know
 
 # 13.4 
 
-```{r}
+```{r, echo = F}
 cig <- read_xlsx('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/E-CID-3.xlsx')
+```
 
+```{R}
 cig$Y1 <- with(cig, log(NNAL_vt4_creat / NNAL_vt0_creat))
 cig$Y2 <- with(cig, log(TNE_vt4_creat / TNE_vt0_creat))
 
@@ -574,7 +618,7 @@ kbl(sum2, booktabs = T, caption = "Original Scale Regression Estimates") %>%
 
 * Bonferroni Adjustments 
 
-```{r}
+```{r, echo = F}
 sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
 sum_bonf_adj$`Significant at Adj. Level` = 
   with(sum_bonf_adj, 
@@ -590,7 +634,7 @@ sum_bonf_adj %>%
 
 * HOLM Adjustments 
 
-```{r}
+```{r, echo = F}
 
 holm_data <- 
   sum2 %>% select(`Model Term`, `P-value`) %>% arrange(`P-value`) %>% 
@@ -624,7 +668,7 @@ holm_data %>%
 
 * Hochberg Adjustments
     
-```{r}
+```{r, echo = F}
 
 hoch_data <- 
   sum2 %>% select(`Model Term`, `P-value`) %>% arrange(-`P-value`) %>% 
@@ -733,7 +777,7 @@ sum2[,2:5] <- lapply(sum2[,2:5], round_3)
 
 colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
 
-kbl(sum2, booktabs = T, caption = "") %>% 
+kbl(sum2, booktabs = T, caption = "Regression of Y1, ") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
