@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.7.5)  24 OCT 2022 10:07
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.7.5)  24 OCT 2022 12:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -489,6 +489,9 @@ File: l3backend-pdftex.def 2022-02-07 L3 backend support: PDF output (pdfTeX)
 
 LaTeX Warning: Label `tab:unnamed-chunk-13' multiply defined.
 
+
+LaTeX Warning: Label `tab:unnamed-chunk-17' multiply defined.
+
 )
 \openout1 = `HW6.aux'.
 
@@ -678,96 +681,91 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 File: HW6_files/figure-latex/unnamed-chunk-11-1.pdf Graphic file (type pdf)
 <use HW6_files/figure-latex/unnamed-chunk-11-1.pdf>
 Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-11-1.pdf  used on
- input line 294.
+ input line 318.
 (pdftex.def)             Requested size: 459.73741pt x 306.157pt.
 [4]
 
-LaTeX Font Warning: Command \Large invalid in math mode on input line 325.
+LaTeX Font Warning: Command \Large invalid in math mode on input line 350.
 
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <14.4> on input line 325.
+(Font)              <14.4> on input line 350.
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <10> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 330.
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 356.
 [5 <./HW6_files/figure-latex/unnamed-chunk-11-1.pdf>]
 
-LaTeX Font Warning: Command \Large invalid in math mode on input line 391.
+LaTeX Font Warning: Command \Large invalid in math mode on input line 372.
 
-[6] [7]
+
+LaTeX Font Warning: Command \Large invalid in math mode on input line 433.
+
+[6] [7] [8]
 LaTeX Font Info:    Trying to load font information for TS1+lmtt on input line 
-581.
+665.
 (/usr/local/texlive/2022/texmf-dist/tex/latex/lm/ts1lmtt.fd
 File: ts1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) [8]
-Overfull \vbox (1.22743pt too high) detected at line 662
+) [9] [10] [11] [12] [13]
+<HW6_files/figure-latex/unnamed-chunk-34-1.pdf, id=149, 459.7175pt x 313.17pt>
+File: HW6_files/figure-latex/unnamed-chunk-34-1.pdf Graphic file (type pdf)
+<use HW6_files/figure-latex/unnamed-chunk-34-1.pdf>
+Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-34-1.pdf  used on
+ input line 1052.
+(pdftex.def)             Requested size: 459.7304pt x 313.17877pt.
+[14] [15 <./HW6_files/figure-latex/unnamed-chunk-34-1.pdf>]
+<HW6_files/figure-latex/unnamed-chunk-39-1.pdf, id=171, 459.7175pt x 313.17pt>
+File: HW6_files/figure-latex/unnamed-chunk-39-1.pdf Graphic file (type pdf)
+<use HW6_files/figure-latex/unnamed-chunk-39-1.pdf>
+Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-39-1.pdf  used on
+ input line 1147.
+(pdftex.def)             Requested size: 459.7304pt x 313.17877pt.
+[16 <./HW6_files/figure-latex/unnamed-chunk-39-1.pdf>] [17]
+<HW6_files/figure-latex/unnamed-chunk-42-1.pdf, id=192, 453.695pt x 315.1775pt>
+
+File: HW6_files/figure-latex/unnamed-chunk-42-1.pdf Graphic file (type pdf)
+<use HW6_files/figure-latex/unnamed-chunk-42-1.pdf>
+Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-42-1.pdf  used on
+ input line 1199.
+(pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
+
+Underfull \vbox (badness 10000) detected at line 1220
  []
 
-[9]
-Overfull \vbox (1.77966pt too high) detected at line 736
- []
+[18 <./HW6_files/figure-latex/unnamed-chunk-42-1.pdf>]
+<HW6_files/figure-latex/unnamed-chunk-42-2.pdf, id=206, 453.695pt x 315.1775pt>
 
-[10] [11] [12]
-<HW6_files/figure-latex/unnamed-chunk-35-1.pdf, id=149, 459.7175pt x 313.17pt>
-File: HW6_files/figure-latex/unnamed-chunk-35-1.pdf Graphic file (type pdf)
-<use HW6_files/figure-latex/unnamed-chunk-35-1.pdf>
-Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-35-1.pdf  used on
- input line 920.
-(pdftex.def)             Requested size: 459.7304pt x 313.17877pt.
-[13 <./HW6_files/figure-latex/unnamed-chunk-35-1.pdf>]
-<HW6_files/figure-latex/unnamed-chunk-40-1.pdf, id=164, 459.7175pt x 313.17pt>
-File: HW6_files/figure-latex/unnamed-chunk-40-1.pdf Graphic file (type pdf)
-<use HW6_files/figure-latex/unnamed-chunk-40-1.pdf>
-Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-40-1.pdf  used on
- input line 987.
-(pdftex.def)             Requested size: 459.7304pt x 313.17877pt.
-[14] [15 <./HW6_files/figure-latex/unnamed-chunk-40-1.pdf>]
-<HW6_files/figure-latex/unnamed-chunk-43-1.pdf, id=186, 453.695pt x 315.1775pt>
+File: HW6_files/figure-latex/unnamed-chunk-42-2.pdf Graphic file (type pdf)
+<use HW6_files/figure-latex/unnamed-chunk-42-2.pdf>
+Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-42-2.pdf  used on
+ input line 1222.
+(pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
+<HW6_files/figure-latex/unnamed-chunk-43-1.pdf, id=207, 453.695pt x 315.1775pt>
 
 File: HW6_files/figure-latex/unnamed-chunk-43-1.pdf Graphic file (type pdf)
 <use HW6_files/figure-latex/unnamed-chunk-43-1.pdf>
 Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-43-1.pdf  used on
- input line 1039.
+ input line 1244.
 (pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
-
-Underfull \vbox (badness 10000) detected at line 1060
- []
-
-[16 <./HW6_files/figure-latex/unnamed-chunk-43-1.pdf>]
-<HW6_files/figure-latex/unnamed-chunk-43-2.pdf, id=200, 453.695pt x 315.1775pt>
+[19 <./HW6_files/figure-latex/unnamed-chunk-42-2.pdf>]
+<HW6_files/figure-latex/unnamed-chunk-43-2.pdf, id=220, 453.695pt x 315.1775pt>
 
 File: HW6_files/figure-latex/unnamed-chunk-43-2.pdf Graphic file (type pdf)
 <use HW6_files/figure-latex/unnamed-chunk-43-2.pdf>
 Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-43-2.pdf  used on
- input line 1062.
+ input line 1266.
 (pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
-<HW6_files/figure-latex/unnamed-chunk-44-1.pdf, id=201, 453.695pt x 315.1775pt>
-
-File: HW6_files/figure-latex/unnamed-chunk-44-1.pdf Graphic file (type pdf)
-<use HW6_files/figure-latex/unnamed-chunk-44-1.pdf>
-Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-44-1.pdf  used on
- input line 1084.
-(pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
-[17 <./HW6_files/figure-latex/unnamed-chunk-43-2.pdf>]
-<HW6_files/figure-latex/unnamed-chunk-44-2.pdf, id=213, 453.695pt x 315.1775pt>
-
-File: HW6_files/figure-latex/unnamed-chunk-44-2.pdf Graphic file (type pdf)
-<use HW6_files/figure-latex/unnamed-chunk-44-2.pdf>
-Package pdftex.def Info: HW6_files/figure-latex/unnamed-chunk-44-2.pdf  used on
- input line 1106.
-(pdftex.def)             Requested size: 453.6939pt x 315.17673pt.
-[18 <./HW6_files/figure-latex/unnamed-chunk-44-1.pdf>] [19 <./HW6_files/figure-
-latex/unnamed-chunk-44-2.pdf>] (./HW6.aux)
+[20 <./HW6_files/figure-latex/unnamed-chunk-43-1.pdf>] [21 <./HW6_files/figure-
+latex/unnamed-chunk-43-2.pdf>] (./HW6.aux)
 
 LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 15674 strings out of 478268
- 251627 string characters out of 5846348
- 595865 words of memory out of 5000000
- 33427 multiletter control sequences out of 15000+600000
- 528245 words of font info for 120 fonts, out of 8000000 for 9000
+ 15701 strings out of 478268
+ 251897 string characters out of 5846348
+ 593814 words of memory out of 5000000
+ 33426 multiletter control sequences out of 15000+600000
+ 529335 words of font info for 133 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 74i,11n,77p,1000b,401s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 74i,11n,77p,1000b,439s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}{/usr/local
 /texlive/2022/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}{/usr/local/texlive/2022/
 texmf-dist/fonts/enc/dvips/lm/lm-mathex.enc}{/usr/local/texlive/2022/texmf-dist
@@ -787,10 +785,10 @@ xmf-dist/fonts/type1/public/lm/lmsy7.pfb></usr/local/texlive/2022/texmf-dist/fo
 nts/type1/public/lm/lmtk10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/
 public/lm/lmtt10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/lm/
 lmtti10.pfb>
-Output written on HW6.pdf (19 pages, 374289 bytes).
+Output written on HW6.pdf (21 pages, 387351 bytes).
 PDF statistics:
- 383 PDF objects out of 1000 (max. 8388607)
- 299 compressed objects within 3 object streams
- 74 named destinations out of 1000 (max. 500000)
+ 390 PDF objects out of 1000 (max. 8388607)
+ 303 compressed objects within 4 object streams
+ 76 named destinations out of 1000 (max. 500000)
  32950 words of extra memory for PDF output out of 35830 (max. 10000000)
 

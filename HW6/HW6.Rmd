@@ -148,7 +148,7 @@ sum_data %>%
 
 Comments: 
 
-* R-squared is `r round(summary(inf_lm)$adj.r.squared,4) ` and Adjusted R-squared is `r round(summary(inf_lm)$r.squared,4)` 
+* R-squared is `r round(summary(inf_lm)$r.squared,4)`  and Adjusted R-squared is `r round(summary(inf_lm)$adj.r.squared,4) ` 
 
 * The number of gestational weeks is an extremely strong predictor of the infant's birth weight. 
   Each additional week add an average of `r sum_data[2,2]` units of measurement (not sure what they 
@@ -173,9 +173,14 @@ Comments:
   + A very wide parabola usualyy does not indicate a strong effect, and visually it should apprear 
     closer to a straight line with a zero linear coefficient. 
 
-### Evaluate Extra Sum of Squares
+### Evaluate Extra Sum of Squares 
 
-Focus: Evaluate SSR(Age^2 | Gest, Age)
+We already know that the linear and quadratic terms of mother's age are not strong predictors of 
+birth weight. In this section we will specifically investigate the extra sum of squares and 
+partial coefficient of determination to desribe their predictive power in more depth. 
+
+I used built in `R` functions to create an ANOVA table to decompose SSR and obtain partial 
+coefficients of determination. 
 
 ```{r, echo = F}
 anv <- data.frame(anova(inf_lm) )
@@ -210,13 +215,25 @@ Rs_3 <- (ssr_3 - ssr_2) /sse_2
 
 ```
 
-* Extra SS
+* Extra SSR for mother's age squared is: `r  anv[3,4]`
 
-* Extra R^2 
+* Extra $R^2$ of mother's age squared after the addition of gestational weeks and linear term for 
+  mother's age is: `r round(Rs_3, 4)`, which is extremely low
 
-* Connection with the t-test 
+* We can see once again that these F tests are directly related to the T test we obtain from the model
+  summary. The connection can be seen by observing that the p-values are the same, and F-test 
+  statistics is the square of the T-test statistic. 
+  
+* The p-value of Extra SSR for the squared mother's age term is `r anv[3,6]`, so we can't reject the 
+  null hypothesis. Therefore, there is no statistical evidence that the squared mother's age 
+  term helps to meaningfully explain variation in birth weight. 
+  
+* Both linear and quadratic terms for mother's age can be removed. 
 
 ### Visualize Model Effects
+
+We conclude this section by visualizing the effects both linear and quadratic terms on the birth weight of an infant. As we can see, the fitted effect is a downward-facing parabola, as we 
+expected by looking at the coefficients. 
 
 ```{r, echo = F }
 mydf <- ggpredict(inf_lm, terms = "m_age")
@@ -242,24 +259,30 @@ ggplot(mydf, aes(x, predicted)) +
 
 ```
 
-* Comment on Standard Error and fit, we can fit a line with slope =
+This plot visually confirms all inferences and conclusions we have made thus far about the 
+linear and quadratic terms of mother's are. 
+
+* We can see that the confidence bound around fitted effect line includes a flat straight line 
+  with the zero-coefficient. So, a 95% confidence interval includes a 'scenario' where the 
+  predictors show no effect on the response variables 
+  
+* We have a very wide parabola with a downward-facing ends, which is the result of a very small 
+  absolute values of a coefficient and a negative value of a coefficient. 
 
 ### Interpretation of Mother's Age Coefficients 
 
-From google, interpretation of the quadratic coefficient: 
-
-"
-A positive quadratic coefficient causes the ends of the parabola to point upward. A negative quadratic coefficient causes the ends of the parabola to point downward. The greater the quadratic coefficient, the narrower the parabola. The lesser the quadratic coefficient, the wider the parabola."
-
-https://stats.stackexchange.com/questions/108657/how-to-interpret-coefficients-of-x-and-x2-in-same-regression
-
-It may be useful to describe the effect of a unit change at some low value, some high value and somewhere in between.
+It does not make sense to interpret the linear term while "holding the square term constant", 
+because the two are a function of the same measurement. This conclusion also follows from the fact 
+that the two variables are correlated both mathematically and physically. 
 
 ## 12.2 - B
 
-Correlation Transformation for variables $Y, X_1, ..., X_{p-1}$, denoted by $V$: 
+Correlation Transformation for variables $Y, X_1, ..., X_{p-1}$, denoted by $V$, is given by this 
+formula: 
 
 $$\Large V^* = \frac{1}{\sqrt{n - 1}} \times \Big (\frac{V - \bar V}{sd(V)} \Big )$$
+We use the code below to transform the variables
+
 ```{r}
 
 correlation_transformation <- 
@@ -274,6 +297,15 @@ infants_f_cor_tr <- infants_f
 
 infants_f_cor_tr <- data.frame(lapply(infants_f_cor_tr, correlation_transformation))
 ```
+
+Using transformed variables, we use this model specification and provide a summary for this model 
+below: 
+
+$$\Large E[Y^*] = \hat \beta_0 + \hat \beta_1 * Gestional \ Weeks^* + \hat \beta_2 * Mother's \ Age^* + \hat \beta_3 * (Mother's \ Age^*)^2$$
+
+
+In addition to the correlation transformed coefficient, we provide a summary table for the model of 
+unstransformed variables, which we saw in part (A)
 
 ```{r, echo = F}
 cor_tr_lm <- lm(birth_w ~ . , data = infants_f_cor_tr)
@@ -298,19 +330,31 @@ kbl(sum2, booktabs = T, caption = "Correlation  Transformation Regression Estima
 
 ```
 
-* intercept is zero as expected in corr transformed 
+Comments: 
 
-* P-values are different for m age 
+* Intercept is zero when we fit the model to the correlation transformed variables, which is to be 
+  expected. 
 
-* Same conclusions apply 
+* T and P values are the same for the covariates in both models, which suggests that the scale of 
+  the predictors should not affect the statistical tests and results for the inference of coefficients
+  and standard errors. 
 
+* Therefore, same conclusions apply for the correaltion transformed regression model and orignal scale
+  model. 
+  
 ## 12.2 - C
 
-Transformation back to the original scale: 
+Transformation back to the original scale is given by this formula: 
 
 For variables $X_1, ..., X_{p-1}$: 
 
 $$\Large \hat \beta_i =  \hat \beta^*_i \times \frac{sd(Y)}{sd(X_i)}$$
+Once we obtain the original scale estimates, we can calculate the intercept term. We omit this 
+calculation here. If we verify that $\hat \beta_1 , ..., \hat \beta_{p-1}$ match the original estimates
+after the transformation back, we know that we also will obtain the proper intercept term. 
+
+Back transformation will be done using code in the chunk below: 
+
 ```{r}
 transform_back <-
   function(Beta_star, s_x, s_y){
@@ -320,7 +364,9 @@ transform_back <-
 S_Y <- sd(infants_f$birth_w)
 ```
 
-Hid code to prepare the table. 
+I hid the code that constructs a data frame for presentation. In addition to the $\hat \beta_i$ 
+estimates I included their confidence intervals. It was of interest to me to verify that linear 
+transformation applies to both the coefficient and the standard errors. 
 
 ```{r, echo = F}
 check_res <- 
@@ -343,16 +389,19 @@ check_res <-
 ```
 
 
-recall the the original model with the transformed variables was called `inf_lm`. Used it for Extra SS,
-t-tests and model effects. We can obtain standard errors and confidence intervals for the estimates
-to compare with the transformation back from the correlation transformation procedure. 
+Recall the the original model with the transformed variables was called `inf_lm`. 
+I used it for Extra SS, t-tests and model effects in the previous sections. 
 
 ```{r}
 conf <- data.frame(confint(inf_lm)) # just the confidence intervals 
 conf <- cbind(coefficients(inf_lm), conf )
 ```
 
+We can obtain standard errors and confidence intervals for the estimates
+to compare with the transformation back from the correlation transformation procedure. 
+
 ```{r, echo=F}
+
 conf$names <- c("Intercept", "Gestation Weeks", "Mother's Age", "Mother's Age Squared")
 rownames(conf) <- NULL
 
@@ -363,27 +412,26 @@ colnames(conf) <- c("Model Term", "Coefficient", "95% C.I. Lower Bound", "95% C.
 round_3 <- function(x){round(x,3)}
 conf[,2:4] <- sapply(conf[, 2:4], round_3)
 
-conf %>% filter(`Model Term` != "Intercept" ) %>% 
-  kbl(align = c('l', rep('c', length(conf)-1)), booktabs =  T, 
-      caption = "Original Model Estiamtes and C.I.") %>% 
-  kable_styling(latex_options = c("HOLD_posiiton", "striped")) 
-
-```
-
-```{r, echo = F}
 
 colnames(check_res) <- c("Model Term", "Coefficient", "95% C.I. Lower Bound", "95% C.I. Upper Bound")
 
 check_res[,2:4] <- lapply(check_res[,2:4], round_3)
 
+
+conf %>% filter(`Model Term` != "Intercept" ) %>% 
+  kbl(align = c('l', rep('c', length(conf)-1)), booktabs =  T, 
+      caption = "Original Model Estiamtes and C.I.") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) 
+
 check_res %>% filter(`Model Term` != "Intercept" ) %>% 
   kbl(align = c('l', rep('c', length(conf)-1)), booktabs =  T, 
-      caption = "Estimaes obtained via \n Back-Trnasformation and C.I.") %>% 
-  kable_styling(latex_options = c("HOLD_posiiton", "striped")) 
+      caption = "Estimaes and C.I. obtained via \n Back-Trnasformation") %>% 
+  kable_styling(latex_options = c('striped', "HOLD_position")) 
 ```
 
-so we can use linear transformations 
-good to know 
+As we can see, the results matched. 
+
+\newpage 
 
 # 13.4 
 
@@ -403,13 +451,8 @@ colnames(cig)[length(cig)] <- "ftnd"
 
 ## 13.4 - A
 
-* Arm will result in 4 -1 variables 
-
-* Age is untouched 
-
-* FTND is treated as continuous 
-
-* Others need to be converted to factor variables 
+We can summarize each variable that we consider for analysis and use this table to find the 
+number of predictors that we will have: 
 
 ```{r}
 
@@ -423,6 +466,7 @@ cig <- data.frame(one_hot(as.data.table(cig))) %>% select(-arm_5)
 
 cig[,4:(length(cig)-1)] <- lapply(cig[,4:(length(cig)-1)], as.factor)
 ```
+
 
 ```{r}
 n_unique <- function(x){length(unique(x))}
@@ -456,15 +500,35 @@ meta_data %>%
 n_predictors <- nrow(meta_data)
 ```
 
+After consideration of all variables that we need for analysis, we know that this is the final 
+set of covariates. 
+
+* Arm will result in $4 -1 = 3$ variables 
+
+* Age is untouched 
+
+* FTND is treated as continuous 
+
+So, the total number of predictors is 3 for Arm indicators, plus other covariates, which results in 
+`r n_predictors` total predictors. 
+
 ## 13.4 - B
+
+In this section we will create a regression model for $Y1$, provide a summary table for model 
+estimates, and look at three different ways to adjust p-values for multiple comparisons. 
+
+We then will repeat this process for $Y2$. 
 
 ### Regression on Y1 
 
- add model specification 
- 
+First, we specify the model in the code chunk below. Regression model has 8 predictors, so 
+we will avoid writing the entire expression for $E[Y]$. 
+
 ```{r}
 y1_lm1 <- lm(Y1 ~ . - Y2, data = cig )
 ```
+
+Summary of coefficients and tests statistics is given below: 
 
 ```{r , echo = F}
 sum2 <- data.frame(summary(y1_lm1)$coefficients)
@@ -485,13 +549,22 @@ kbl(sum2, booktabs = T, caption = "Original Scale Regression Estimates") %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
-* Bonferroni Adjustments 
+* It appears that at the $\alpha = 0.05$ significance level, participants from group 6 and 
+  higher levels of income saw their measurements consistently reduced, after adjusting for other 
+  predictors. Other variables do not show a statistically significant relationship with 
+  the response variable. 
+  
+Since we have 8 tests for each predictor variable, we have $1 - (1 - 0.05)^8 =$ `r round(1- (1-0.05)^8, 4)` probability of 
+at least one test being a false positive. This is not an incredibly high probability, but it 
+definitely raises a cause for concern. Therefore, we need to make an adjustment for performing 
+multiple comparisons at the same time. 
 
-    + $P-value = 0.05$
-    
-    + $Bonferroni \ adjusted \ P-value =$ `r round(0.05 / n_predictors, 4)`
+We begin with the **Bonferroni Adjustment**. This is the simplest, and most conservative adjustment. 
+Given our desired significance level, $\alpha = 0.05$, the new level at which we declare significance
+is $Bonferroni \ adjusted \ P-value =$ `r round(0.05 / n_predictors, 4)`. 
 
-corrected p-value = p-value / number of predictors 
+Thus, we present the table with predictors and corresponding p-values from the multiple regression 
+model, and denote predcitors which are statistically significant at the new level with a "*". 
 
 ```{r}
 sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
@@ -507,13 +580,24 @@ sum_bonf_adj %>%
 
 ```
 
-* HOLM Adjustments 
+it appears that still only an indicator for Arm 6 group is a statistically significant predictor. 
 
-    + order p-values smallest to largest 
+Next we would like to implement **HOLM Adjustments**. The procedure involves iterrative evaluation 
+of p-values using these steps: 
+
+* order p-values smallest to largest 
     + if first p-value if smaller than $0.05 / 8 =$ `r round(0.05 / n_predictors, 4)` then 
       conclude significance, and move to next predictor, otherwise stop, none are significant 
       
-    + next predictor will be tested at $0.05 / 7 =$ `r round(0.05 / (n_predictors-1), 4)`
+* next predictor will be tested at $0.05 / 7 =$ `r round(0.05 / (n_predictors-1), 4)`. 
+    + So, each time we declare a predictor significant, we increase the denominator for the new 
+      cutoff by +1. 
+    
+* The process stops when we find the first predictor that is not statistically significant 
+    
+We use the code below to evaluate p-values according to the adjustments and present the table with 
+the results. Note that the predictors are sorted in the table from the smallest to the highest
+original  p-value. 
 
 ```{r}
 
@@ -547,12 +631,16 @@ holm_data %>%
 
 ```
 
-* Hochberg Adjustments
+Once again, Arm 6 indicator variable is the only statistically signifcant predictor. 
 
-    + Sort P-values largest to smallest 
-    + Compare the largest to $0.05$, if significant, declare all significant
-    + Otherwise, compare the next one to $0.05/2 = 0.025$
-    + Keep comparing to $0.05/3$, $0.05/4$, etc.. until we find a comparison where 
+And finally we also implement the **Hochberg Adjustments**. The process is somewhat similar with 
+the HOLM adjustment, but it is different enough that we should implement it. The process is given by:
+
+* Sort P-values largest to smallest 
+* Compare the largest to $0.05$, if significant, declare all significant
+* Otherwise, compare the next one to $0.05/2 = 0.025$
+* Keep comparing to $0.05/3$, $0.05/4$, etc.. until we find a comparison where the predictor is 
+  not statistically significant, the first such predictor terminates the process. 
 
     
 ```{r}
@@ -589,9 +677,16 @@ hoch_data %>%
 
 ```
 
-* SUMMARY OF COEFFICIENT SELECTION FOR Y1 REGRESSION 
+Once again, Arm 6 indicator variable is the only statistically signifcant predictor. 
+
+Therefore, after a series of p-value adjustemtns we can conclude that we do not have any false 
+positive statsistically signifiacnt predictors, and we can state that Arm 6 is the only statistically significant predcitor after adjusting for other covaraites. 
 
 ### Regression on Y2 
+
+Similarly, we will create the same set of summary and adjustment table for the regression model 
+for Y2 variable, but will omit most of the commentary due to similarities with the Y1 regression 
+model. 
 
 ```{r}
 y2_lm1 <- lm(Y2 ~ . - Y1, data = cig )
@@ -702,11 +797,24 @@ hoch_data %>%
 
 ```
 
+As a result of the review, there are no statistically signifacnt predictors of Y2 when all variables 
+are included. 
+
 ## 13.4 - C
+
+In this section we will again do the two different models for Y1 and Y2, will look at the model 
+selection plots, and summarize the final selected model. 
 
 ### Step Wise Regression on Y1 
 
-comment that we have 2^8 possible models, and these are candidates for the best possible model 
+Since we have 8 predictors, and for each predictor we have an option to include or not include
+it into the model, we have a total of $2^8 = 256$ possible models we can create. Therefore, 
+using built in fucntions, we ontain a subset of candidate models. We will evaluate these 
+candidate models using adjusted R-squared and AIC metrics. There two metrics should provide us with 
+the simplest and most effective models that explain the higest proportion of Y1 variance, after 
+adjusting for the number of predictors in the model. 
+
+Table below lists 8 candidate models with the best $R^2$ and $AIC$ scores. 
 
 ```{r}
 k <- ols_step_best_subset(y1_lm1)
@@ -716,6 +824,9 @@ k %>% dplyr::select(n, predictors) %>%
       caption = "Regression of Y1, Best Candidate Models") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
+
+Values of metrics are presented on the plots below, each model is indexed according to the table
+above. 
 
 ```{r, echo = F}
 g1 <- 
@@ -739,6 +850,9 @@ g2 <-
 grid.arrange(g1, g2, nrow = 1)
 ```
 
+It apprears that model 3 is perhaps the best possible model that we can employ to explain variation 
+in Y1. Metrics for this model are given below: 
+
 ```{r, echo = F}
 
 k <- data.frame(k)
@@ -753,34 +867,53 @@ k_f[,2:4] <- lapply(k_f[,2:4], round_3)
 
 k_f %>% 
   kbl(caption = "Regression of Y1, Parameters of Selected Model", 
-      booktabs = T)
+      booktabs = T) %>% 
+  kable_styling(latex_options = c("HOLD_position"))
 
 ```
+
+Therefore, we fit this model, and provide a summary table for its coefficients and 
+other statistics: 
 
 ```{r, echo = F}
 y1_lm1_step <- stepAIC(y1_lm1, direction = "both", 
                       trace = FALSE)
-```
 
+sum22 <- data.frame(summary(y1_lm1_step)$coefficients)
 
-```{r, echo = F}
-sum2 <- data.frame(summary(y1_lm1_step)$coefficients)
+sum22$names <- c("Intercept", "Arm 6",  "Arm 8","Income >= $30K")
 
-sum2$names <- c("Intercept", "Arm 6",  "Arm 8","Income >= $30K")
+rownames(sum22) <- NULL
 
-rownames(sum2) <- NULL
-
-sum2 <- sum2 %>%  dplyr::select(names, everything())
+sum22 <- sum22 %>%  dplyr::select(names, everything())
 
 round_3 <- function(x){round(x,3)}
-sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+sum22[,2:5] <- lapply(sum22[,2:5], round_3)
 
-colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+colnames(sum22) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
 
-kbl(sum2, booktabs = T, caption = "Regression of Y1, ") %>% 
+kbl(sum22, booktabs = T, caption = "Regression of Y1, ") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
+
+```{r, echo = F}
+a81 <- sum2[sum2$`Model Term` == "Arm 8", ]$Estimate
+a82 <- sum22[sum22$`Model Term` == "Arm 8", ]$Estimate
+```
+
+After selecting the best possible predictors we observe different results: 
+
+* All predictors selected are now statistically significantly related to the outcome variable. 
+
+* The fact that p-values and coefficients changed implies that we had a multicollinearity 
+  problem in the previously stated regression model with all possible predictors. 
+  
+* For example, coefficient for Arm 8 indicator variable changed from `r a81` to `r a82`
+  + It can be of interest to us to identify which variables are correlated with Arm 8 indicator, 
+    but it involves $\chi ^2$ testing for correlation of categorical variables 
+    
+  + We will present more on multicollinearity in the appendix
 
 ### Step Wise Regression on Y2
 
