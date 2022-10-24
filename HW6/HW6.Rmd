@@ -82,7 +82,7 @@ ggplot(data = infants_f,
 
 ```
 
-We can see that we should fit the plynomial regression model because the smooth line shows a 
+We can see that we should fit the polynomial regression model because the smooth line shows a 
 curved relationship between the two variables. However, the confidence bound around the smooth line 
 suggest that potentially we may be able to fit a straight, first order, line in order to predict 
 infant's birth weight. Overall, it is not very clear to what the verdict is, so we will fit the 
@@ -170,14 +170,14 @@ Comments:
   + In our case the coefficient is `r sum_data[4,2]`, so the effect can 
       be visualized as a wide downward-pointing parabola. 
       
-  + A very wide parabola usualyy does not indicate a strong effect, and visually it should apprear 
+  + A very wide parabola usually does not indicate a strong effect, and visually it should appear 
     closer to a straight line with a zero linear coefficient. 
 
 ### Evaluate Extra Sum of Squares 
 
 We already know that the linear and quadratic terms of mother's age are not strong predictors of 
 birth weight. In this section we will specifically investigate the extra sum of squares and 
-partial coefficient of determination to desribe their predictive power in more depth. 
+partial coefficient of determination to describe their predictive power in more depth. 
 
 I used built in `R` functions to create an ANOVA table to decompose SSR and obtain partial 
 coefficients of determination. 
@@ -218,7 +218,7 @@ Rs_3 <- (ssr_3 - ssr_2) /sse_2
 * Extra SSR for mother's age squared is: `r  anv[3,4]`
 
 * Extra $R^2$ of mother's age squared after the addition of gestational weeks and linear term for 
-  mother's age is: `r round(Rs_3, 4)`, which is extremely low
+  mother's age is: `r round(Rs_3, 4)`, which is low
 
 * We can see once again that these F tests are directly related to the T test we obtain from the model
   summary. The connection can be seen by observing that the p-values are the same, and F-test 
@@ -339,7 +339,7 @@ Comments:
   the predictors should not affect the statistical tests and results for the inference of coefficients
   and standard errors. 
 
-* Therefore, same conclusions apply for the correaltion transformed regression model and orignal scale
+* Therefore, same conclusions apply for the correlation transformed regression model and original scale
   model. 
   
 ## 12.2 - C
@@ -564,7 +564,7 @@ Given our desired significance level, $\alpha = 0.05$, the new level at which we
 is $Bonferroni \ adjusted \ P-value =$ `r round(0.05 / n_predictors, 4)`. 
 
 Thus, we present the table with predictors and corresponding p-values from the multiple regression 
-model, and denote predcitors which are statistically significant at the new level with a "*". 
+model, and denote predictors which are statistically significant at the new level with a "*". 
 
 ```{r}
 sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
@@ -582,7 +582,7 @@ sum_bonf_adj %>%
 
 it appears that still only an indicator for Arm 6 group is a statistically significant predictor. 
 
-Next we would like to implement **HOLM Adjustments**. The procedure involves iterrative evaluation 
+Next we would like to implement **HOLM Adjustments**. The procedure involves iterative evaluation 
 of p-values using these steps: 
 
 * order p-values smallest to largest 
@@ -590,8 +590,8 @@ of p-values using these steps:
       conclude significance, and move to next predictor, otherwise stop, none are significant 
       
 * next predictor will be tested at $0.05 / 7 =$ `r round(0.05 / (n_predictors-1), 4)`. 
-    + So, each time we declare a predictor significant, we increase the denominator for the new 
-      cutoff by +1. 
+    + So, each time we declare a predictor significant, we decrease the denominator for the new 
+      cutoff by 1. 
     
 * The process stops when we find the first predictor that is not statistically significant 
     
@@ -631,7 +631,7 @@ holm_data %>%
 
 ```
 
-Once again, Arm 6 indicator variable is the only statistically signifcant predictor. 
+Once again, Arm 6 indicator variable is the only statistically significant predictor. 
 
 And finally we also implement the **Hochberg Adjustments**. The process is somewhat similar with 
 the HOLM adjustment, but it is different enough that we should implement it. The process is given by:
@@ -677,10 +677,10 @@ hoch_data %>%
 
 ```
 
-Once again, Arm 6 indicator variable is the only statistically signifcant predictor. 
+Once again, Arm 6 indicator variable is the only statistically significant predictor. 
 
-Therefore, after a series of p-value adjustemtns we can conclude that we do not have any false 
-positive statsistically signifiacnt predictors, and we can state that Arm 6 is the only statistically significant predcitor after adjusting for other covaraites. 
+Therefore, after a series of p-value adjustments we can conclude that we do not have any false 
+positive statistically significant predictors, and we can state that Arm 6 is the only statistically significant predictor after adjusting for other covaraites. 
 
 ### Regression on Y2 
 
@@ -797,7 +797,7 @@ hoch_data %>%
 
 ```
 
-As a result of the review, there are no statistically signifacnt predictors of Y2 when all variables 
+As a result of the review, there are no statistically significant predictors of Y2 when all variables 
 are included. 
 
 ## 13.4 - C
@@ -809,9 +809,9 @@ selection plots, and summarize the final selected model.
 
 Since we have 8 predictors, and for each predictor we have an option to include or not include
 it into the model, we have a total of $2^8 = 256$ possible models we can create. Therefore, 
-using built in fucntions, we ontain a subset of candidate models. We will evaluate these 
+using built in functions, we obtain a subset of candidate models. We will evaluate these 
 candidate models using adjusted R-squared and AIC metrics. There two metrics should provide us with 
-the simplest and most effective models that explain the higest proportion of Y1 variance, after 
+the simplest and most effective models that explain the highest proportion of Y1 variance, after 
 adjusting for the number of predictors in the model. 
 
 Table below lists 8 candidate models with the best $R^2$ and $AIC$ scores. 
@@ -824,6 +824,8 @@ k %>% dplyr::select(n, predictors) %>%
       caption = "Regression of Y1, Best Candidate Models") %>% 
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
+
+\newpage 
 
 Values of metrics are presented on the plots below, each model is indexed according to the table
 above. 
@@ -850,7 +852,7 @@ g2 <-
 grid.arrange(g1, g2, nrow = 1)
 ```
 
-It apprears that model 3 is perhaps the best possible model that we can employ to explain variation 
+It appears that model 3 is perhaps the best possible model that we can employ to explain variation 
 in Y1. Metrics for this model are given below: 
 
 ```{r, echo = F}
@@ -917,6 +919,8 @@ After selecting the best possible predictors we observe different results:
 
 ### Step Wise Regression on Y2
 
+Similarly, there are 256 possible models we can create to explain variance of Y2, and here are 
+some of the best candidate models 
 
 ```{r}
 k <- ols_step_best_subset(y2_lm1)
@@ -927,6 +931,8 @@ k %>% dplyr::select(n, predictors) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
+
+Using built in functions, we can get Adjusted R-square and AIC for each candidate model
 
 ```{r, echo = F}
 g1 <- 
@@ -950,6 +956,8 @@ g2 <-
 grid.arrange(g1, g2, nrow = 1)
 ```
 
+It appears that a model with index 2 is the best possible candidate
+
 ```{r, echo = F}
 
 k <- data.frame(k)
@@ -963,8 +971,9 @@ colnames(k_f) <- c("Predictors", "R-squared", "Adj. R-squared", "AIC")
 k_f[,2:4] <- lapply(k_f[,2:4], round_3)
 
 k_f %>% 
-  kbl(caption = "Regression of Y1, Parameters of Selected Model", 
-      booktabs = T)
+  kbl(caption = "Regression of Y2, Parameters of Selected Model", 
+      booktabs = T) %>% 
+  kable_styling(latex_options = "HOLD_position")
 
 ```
 
@@ -989,13 +998,21 @@ kbl(sum2, booktabs = T, caption = "") %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 ```
+After fitting a reduced model we, once again, obtain different results. Interesting to see that 
+even though higher income indicator is not statistically significant, it is still included into the
+final model. 
+
+The fact that coefficient almost doubled for Arm 7 indicator variable may suggest that we have a high
+degree of collinearity in the data set. Perhaps, that is the reason why the best possible 
+model only includes 2 out of 8 predictors. 
 
 \newpage 
 
 # Appendix: 12.2 
 
+To be finished after the midterm 
 
-```{r}
+```{r, include = F}
 # look at the correlation between age and age^2 
 ggplot(data = infants_f, 
        aes(x = m_age, 
@@ -1030,7 +1047,7 @@ ggplot(data = infants_f,
 ```
 
 
-```{r}
+```{r, include = F}
 ggplot(data = infants_f, 
        aes(x = m_age, 
            y = birth_w)) + geom_point() + 
