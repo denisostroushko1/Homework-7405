@@ -156,14 +156,15 @@ We have categorical predictors also:
 *three 
 
 **Model Statement** 
+$$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2 + \hat \beta_3 * X_3 + \hat \beta_4 * X_4 = $$
 
-$$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * Residency + \hat \beta_2 * Gender + \hat \beta_3 * Revenue + \hat \beta_4 * Hours \ Worked$$
+$$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_2 * Hours \ Worked  + \hat \beta_3 *Gender  + \hat \beta_4 * Residency $$
 
 **Overall ANOVA** 
 
 ```{r}
 
-full <- lm(complaint_rate_1000 ~ ., data = prob_1_model_data)
+full <- lm(complaint_rate_1000 ~ revenue + hours + gender + residency, data = prob_1_model_data)
 
 SSR <- sum(
   (full$fitted.values - mean(prob_1_model_data$complaint_rate_1000))^2
@@ -312,15 +313,509 @@ ggplot(data = resid_plot_df,
 
 Effect plots needed here, find a nice package 
 
+```{r}
+y_reg <- lm(complaint_rate_1000 ~ residency + gender + revenue, data = prob_1_model_data)
+x_reg <- lm(hours ~ residency + gender + revenue, data = prob_1_model_data)
+
+d <- 
+  data.frame(
+    y_res = y_reg$residuals,
+    x_res = x_reg$residuals
+  )
+
+  ggplot(data = d, 
+         aes(x = x_res, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("X Residuals") + 
+    ylab("Y Residuals") +  
+    labs(color = "Line Type") + 
+    ggtitle("Added Variable Plot for the Number of Hours Worked")
+```
+
 \newpage 
 
 # Problem 2
 
+```{r}
+prob_2 <- read_xlsx('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Exam 1/Exam 1 Covid-Vaccination-E-22.xlsx')
+
+colnames(prob_2) <- c("county", "delta_deaths", "total_deaths", "size", "v_rate", "region")
+# size is expressed in 1,000
+
+```
+
 ## 2 - A
 
+```{r}
+
+ggplot(data = prob_2 %>% filter(region == 1), 
+       aes(x = v_rate)) + 
+  geom_histogram(binwidth = 1, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Vaccination Rate", xintercept = mean(v_rate)), size = 1) + 
+  geom_vline(aes(colour = "Median Vaccination Rate", xintercept = median(v_rate)), size = 1) + 
+  scale_color_manual(values = c("Average Vaccination Rate" = "blue", "Median Vaccination Rate" = "red")) + 
+  labs(color = "Summary Statistics") + 
+  
+  xlab("Vaccination Rates") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Vaccination Rates in Metro Area MN Counties", 
+                "\n Average: ", round(mean((prob_2 %>% filter(region == 1))$v_rate), 2), 
+                "\n Median: ", round(median((prob_2 %>% filter(region == 1))$v_rate), 2))) + 
+  theme_minimal()
+
+```
+
+```{r}
+
+ggplot(data = prob_2 %>% filter(region == 0), 
+       aes(x = v_rate)) + 
+  geom_histogram(binwidth = 1, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Vaccination Rate", xintercept = mean(v_rate)), size = 1) + 
+  geom_vline(aes(colour = "Median Vaccination Rate", xintercept = median(v_rate)), size = 1) + 
+  scale_color_manual(values = c("Average Vaccination Rate" = "blue", "Median Vaccination Rate" = "red")) + 
+  labs(color = "Summary Statistics") + 
+  
+  xlab("Vaccination Rates") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Vaccination Rates in Outstate MN Counties", 
+                "\n Average: ", round(mean((prob_2 %>% filter(region == 0))$v_rate), 2), 
+                "\n Median: ", round(median((prob_2 %>% filter(region == 0))$v_rate), 2))) + 
+  theme_minimal()
+
+```
+
+**Outlier**: `r paste(prob_2[prob_2$v_rate > 87 & prob_2$region == 0, ]$county)`
+`r paste(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$v_rate)`
+
+Olmsted includes Rochester
+Cook is by the Canadian Border 
+
+```{r}
+## summarize the data 
+prob_2 %>% 
+  group_by(region) %>% 
+  summarize(
+    n = n(), 
+    mean = mean(v_rate),
+    median = median(v_rate),
+    sd = round(sd(v_rate),2)
+  ) %>% 
+  mutate(Reg = ifelse(region == 1, "Metro", "Outstate")) %>% 
+  select(-region) %>% 
+  select(Reg, everything()) %>% 
+## pipe it into kable right away
+    kbl(booktabs = T, 
+        caption = "Vaccination Rates Summary by County Type", 
+        col.names = c("Type", "N", "Mean", "Median", "S.D.")) %>%
+      kable_styling(latex_options = c("HOLD_position", "striped"))
+
+```
+
+-   **Normality of Vaccination Rates**
+
+In order to test outliers for normality we plot the residuals against
+expected values of residuals in a normally distributed random sample.
+
+We can calculate these expected values using the formula:
+$$\sqrt {Variance} \times z(\frac{Value - .375}{N + .25}) $$
+
+```{r}
+
+mse <- sd(prob_2$v_rate)
+
+prob_2_n <- prob_2 %>% arrange(v_rate)
+
+prob_2_n$resid_rank <- as.numeric(rownames(prob_2_n))
+
+N <- nrow(prob_2_n)
+
+prob_2_n$expected_v_rate <- sqrt(mse) * qnorm((prob_2_n$resid_rank - .375)/(N + .25))
+
+corr <- cor(prob_2_n$v_rate, prob_2_n$expected_v_rate)
+
+ggplot(data= prob_2_n, 
+       aes(x = expected_v_rate, y = v_rate)) + geom_point() + 
+  geom_smooth(method = "lm", color = "red") + 
+  ylab("Vacciantion Rate") + 
+  xlab("Expected Vacciantion Rate") + 
+  ggtitle(paste("Correlation between Observed and Expected", round(cor(prob_2_n$v_rate, prob_2_n$expected_v_rate),3)))+ 
+  theme_minimal()
+
+```
+
+Use T test here. 
+  No heavy tails or skewed distributions 
+  So nothing should affect the results of the T test 
+  In such samples wilcoxon only has 95% of statistical power that the t test brings, so we will use the t test 
+
+```{r}
+
+wil_res <- 
+  wilcox.test( 
+            y = prob_2[prob_2$region == 1, ]$v_rate, 
+            x = prob_2[prob_2$region == 0, ]$v_rate,
+            
+            conf.int = T,
+            conf.level = .95, 
+            est_diff = T)
+
+t_test <- 
+  t.test(y = prob_2[prob_2$region == 1, ]$v_rate, 
+            x = prob_2[prob_2$region == 0, ]$v_rate,
+            
+            conf.int = T,
+            conf.level = .95, 
+            est_diff = T)
+
+med_1 <- mean((prob_2 %>% filter(region == 1))$v_rate)
+med_0 <- mean((prob_2 %>% filter(region == 0))$v_rate)
+
+
+```
+
+Test results summary and interpretation:
+
+*   Null Hypothesis: $H_0: Mean_{metro \ area} = Mean_{outstate}$ 
+
+*   Test statistic: $H_a: Mean_{metro \ area} \neq Mean_{outstate}$
+
+*   Metro area mean vaccination rate is `r med_1`, while outstate median vaccination mean is `r med_0`
+
+*   Estimated difference is `r med_0-med_1 `, bounded by (`r paste(round(t_test$conf.int[1], 4), ",", round(t_test$conf.int[2], 4))`)
+
+*   Test statistic $T$: `r t_test$statistic`
+
+*   $P(T^* > T) =$ `r round(t_test$p.value,6)`
+
+* Conclusion: 
+    
 ## 2 - B
+
+```{r}
+prob_2$death_rate <- with(prob_2, delta_deaths / size)
+```
+
+
+```{r}
+
+ggplot(data = prob_2 %>% filter(region == 1), 
+       aes(x = death_rate)) + 
+  geom_histogram(binwidth = .1, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Delta Death Rate", xintercept = mean(death_rate)), size = 1) + 
+  geom_vline(aes(colour = "Median Delta Death Rate", xintercept = median(death_rate)), size = 1) + 
+  scale_color_manual(values = c("Average Delta Death Rate" = "blue", "Median Delta Death Rate" = "red")) + 
+  labs(color = "Summary Statistics") + 
+  
+  xlab("Delta Death Rates") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Delta Death Rates in Metro Area MN Counties", 
+                "\n Average: ", round(mean((prob_2 %>% filter(region == 1))$death_rate), 2), 
+                "\n Median: ", round(median((prob_2 %>% filter(region == 1))$death_rate), 2))) + 
+  theme_minimal()
+
+```
+
+```{r}
+
+ggplot(data = prob_2 %>% filter(region == 0), 
+       aes(x = death_rate)) + 
+  geom_histogram(binwidth = .1, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Delta Death Rate", xintercept = mean(death_rate)), size = 1) + 
+  geom_vline(aes(colour = "Median Delta Death Rate", xintercept = median(death_rate)), size = 1) + 
+  scale_color_manual(values = c("Average Delta Death Rate" = "blue", "Median Delta Death Rate" = "red")) + 
+  labs(color = "Summary Statistics") + 
+  
+  xlab("Delta Death Rates") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Delta Death Rates in Metro Area MN Counties", 
+                "\n Average: ", round(mean((prob_2 %>% filter(region == 0))$death_rate), 2), 
+                "\n Median: ", round(median((prob_2 %>% filter(region == 0))$death_rate), 2))) + 
+  theme_minimal()
+
+
+```
+**Outlier**: `r paste(prob_2[prob_2$death_rate > 1.2 & prob_2$region == 0, ]$county)`
+
+Faribault county is kind of an outlier 
+
+Death Rates for Outleir counties Olmsted and Cook `r paste(round(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$death_rate,2))`
+
+`r paste(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$v_rate)`
+
+```{r}
+## summarize the data 
+prob_2 %>% 
+  group_by(region) %>% 
+  summarize(
+    n = n(), 
+    mean = mean(death_rate),
+    median = median(death_rate),
+    sd = round(sd(death_rate),2)
+  ) %>% 
+  mutate(Reg = ifelse(region == 1, "Metro", "Outstate")) %>% 
+  select(-region) %>% 
+  select(Reg, everything()) %>% 
+## pipe it into kable right away
+    kbl(booktabs = T, 
+        caption = "Vaccination Rates Summary by County Type", 
+        col.names = c("Type", "N", "Mean", "Median", "S.D.")) %>%
+      kable_styling(latex_options = c("HOLD_position", "striped"))
+
+med_1 <- median((prob_2 %>% filter(region == 1))$death_rate)
+med_0 <- median((prob_2 %>% filter(region == 0))$death_rate)
+
+```
+
+-   **Normality of Death Rates**
+
+In order to test outliers for normality we plot the residuals against
+expected values of residuals in a normally distributed random sample.
+
+We can calculate these expected values using the formula:
+$$\sqrt {Variance} \times z(\frac{Death Rate - .375}{N + .25}) $$
+
+```{r}
+
+mse <- sd(prob_2$death_rate)
+
+prob_2_n <- prob_2 %>% arrange(death_rate)
+
+prob_2_n$resid_rank <- as.numeric(rownames(prob_2_n))
+
+N <- nrow(prob_2_n)
+
+prob_2_n$expected_death_rate <- sqrt(mse) * qnorm((prob_2_n$resid_rank - .375)/(N + .25))
+
+corr <- cor(prob_2_n$death_rate, prob_2_n$expected_death_rate)
+
+ggplot(data= prob_2_n, 
+       aes(x = expected_death_rate, y = death_rate)) + geom_point() + 
+  geom_smooth(method = "lm", color = "red") + 
+  ylab("Vacciantion Rate") + 
+  xlab("Expected Vacciantion Rate") + 
+  ggtitle(paste("Correlation between Observed and Expected", round(cor(prob_2_n$death_rate, prob_2_n$expected_death_rate),3)))+ 
+  theme_minimal()
+
+```
+```{r}
+
+wil_res <- 
+  wilcox.test( 
+            y = prob_2[prob_2$region == 1, ]$death_rate, 
+            x = prob_2[prob_2$region == 0, ]$death_rate,
+            
+            conf.int = T,
+            conf.level = .95, 
+            est_diff = T)
+
+t_test <- 
+  t.test(y = prob_2[prob_2$region == 1, ]$death_rate, 
+            x = prob_2[prob_2$region == 0, ]$death_rate,
+            
+            conf.int = T,
+            conf.level = .95, 
+            est_diff = T)
+
+med_1 <- mean((prob_2 %>% filter(region == 1))$death_rate)
+med_0 <- mean((prob_2 %>% filter(region == 0))$death_rate)
+
+```
+
+Test results summary and interpretation:
+
+*   Null Hypothesis: $H_0: Mean_{metro \ area} = Mean_{outstate}$ 
+
+*   Test statistic: $H_a: Mean_{metro \ area} \neq Mean_{outstate}$
+
+*   Metro area mean vaccination rate is `r med_1`, while outstate median vaccination mean is `r med_0`
+
+*   Estimated difference is `r med_0-med_1 `, bounded by (`r paste(round(t_test$conf.int[1], 4), ",", round(t_test$conf.int[2], 4))`)
+
+*   Test statistic $T$: `r t_test$statistic`
+
+*   $P(T^* > T) =$ `r round(t_test$p.value,6)`
+
+* Conclusion: 
 
 ## 2 - C
 
+```{r}
+
+death_lm <- lm(death_rate ~ v_rate + region, data = prob_2)
+
+```
+
+Model Specificantion 
+
+$$\Large E[Death Rate] = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2 = $$
+
+$$\Large E[Death Rate] = \hat \beta_0 + \hat \beta_1 * Vaccination \ Rate + \hat \beta_2 * Metro \ Area \ County \ Indicator$$
+
+**Overall ANOVA test**
+
+```{r}
+
+SSR <- sum(
+  (death_lm$fitted.values - mean(prob_2$death_rate))^2
+)
+
+SSE <- sum(death_lm$residuals^2)
+SSTO <- sum((mean(prob_2$death_rate) - prob_2$death_rate)^2 )
+  
+df_ssr <- 2 # for 2 preictors 
+df_sse <- nrow(prob_2) - 3 # - (2 + 1)
+
+res <- 
+  data.frame(
+    Source = c("Regression", "Error", "Total"), 
+    SSR = c(SSR, SSE, SSTO), 
+    DF = c(df_ssr, df_sse, nrow(prob_2)-1)
+  )
+
+res$MS <- NA
+res[1:2,]$MS <- res[1:2,]$SSR / res[1:2,]$DF
+
+res$`F Statistic` <- NA
+res[1,]$`F Statistic` <- round((SSR/df_ssr) / (SSE/df_sse),2)
+
+res$`P(F* > F)` <- NA
+res[1,]$`P(F* > F)` <- round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)
+  
+res %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+
+```
+
+```{r}
+anova(lm(death_rate ~ 1, data = prob_2), death_lm)
+```
+
+* Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1}$
+
+* Alternative Hypothesis: $H_a:$ Not all coefficients $\beta_i$ are zero
+
+* $F-$statistic: `r round((SSR/df_ssr) / (SSE/df_sse),2)`
+
+* Cutoff $F^*$-statistic: `r round(qf(1-.05, df1 = df_ssr, df2 = df_sse),4)`
+
+* So, $F < F^*$, therefore we do not have enough evidence to reject the null hypothesis to conclude that some or all 
+  coefficients $\beta_i$ are consistently different from zero. 
+
+* Moreover, $P(F^* > F) =$ `r round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)`
+  
+* Conclusion: 
+
+**Model Estimates** 
+
+```{r}
+res_reg <- data.frame(summary(death_lm)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+est <- res_reg[res_reg$Predictor == "region", ]$Estiamte
+se <- res_reg[res_reg$Predictor == "region", ]$`Standard Error`
+
+tv <- res_reg[res_reg$Predictor == "region", ]$`T Value`
+pv <- res_reg[res_reg$Predictor == "region", ]$`P value`
+
+```
+
+
+* R square and `r round(summary(death_lm)$r.square,4)`
+
+* Adjusted R Square `r round(summary(death_lm)$adj.r.squared,4)`
+
+*   Null Hypothesis: $H_0: \hat \beta_2 = 0$
+
+*   Alternative Hypothesis: $H_a:  \hat \beta_2 \neq 0$$
+
+*   Test statistic $T:$ `r tv`
+
+*   $P(t^* > t) =$ `r pv`
+
+* Conclusion
+
+Interpretation of  coefficient
+
+Metro Area expected to have `r round(abs(est),4)` deaths per 1,000 
+
+**C.I.** 
+
+```{r}
+est <- res_reg[res_reg$Predictor == "region", ]$`Estiamte`
+
+se <- res_reg[res_reg$Predictor == "region", ]$`Standard Error`
+
+ci <- data.frame(confint(death_lm))
+
+ci$name <- rownames(ci)
+
+est_lb <- round(ci[ci$name == "region", ]$X2.5.., 6)
+est_ub <- round(ci[ci$name == "region", ]$X97.5.., 6)
+  
+```
+
+Using formula $C.I. \ bounds = Estimate \pm 1.96 * Standard \ Error$
+
+C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r est_ub`)
+
+* Conclusion on the effects of two predictors 
+
 ## 2 - D
+
+```{r}
+
+resid_plot_df <- 
+  data.frame(
+    resid = death_lm$residuals, 
+    fit = death_lm$fitted.values
+  )
+
+ggplot(data = resid_plot_df, 
+       aes(x = fit, 
+           y = resid)) + 
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Relationship between Hours Worked and Complaint Rate") +  
+    labs(color = "Line Type")
+
+```
+
+We definitely have non-constant variance 
+
+Procedure: Reg 14 Slide 62
+
+Book pages 421-431
+
 
