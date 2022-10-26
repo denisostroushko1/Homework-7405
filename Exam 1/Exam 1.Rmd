@@ -1,0 +1,326 @@
+---
+title: "Exam 1"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H")
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+# Problem 1
+
+```{r load data problem 1 }
+prob_1 <- read_xlsx('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Exam 1/Exam 1 Emergency-Service-E-22.xlsx')
+
+colnames(prob_1) <- c("n_visits", "complaint", "residency", "gender", "revenue", "hours")
+
+#  str(prob_1)
+#  unique(prob_1$residency)
+#  unique(prob_1$gender)
+
+prob_1$complaint_rate_1000 <- with(prob_1, complaint / n_visits * 1000)
+
+```
+
+## 1- A
+
+```{r complain rate plot}
+
+ggplot(data = prob_1, 
+       aes(x = complaint_rate_1000)) + 
+  geom_histogram(binwidth = .25, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Complaint Rate", xintercept = mean(complaint_rate_1000)), size = 1) + 
+  geom_vline(aes(colour = "Median Complaint Rate", xintercept = median(complaint_rate_1000)), size = 1) + 
+  scale_color_manual(values = c("Average Complaint Rate" = "blue", "Median Complaint Rate" = "red")) + 
+  labs(color = "Summary Statistics") + 
+  
+  xlab("Complaint Rates Per 1,000") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Complaint Rates per 1,000 Visits", 
+                "\n Average: ", round(mean(prob_1$complaint_rate_1000), 2), 
+                "\n Median: ", round(median(prob_1$complaint_rate_1000), 2))) + 
+  theme_minimal()
+
+```
+
+```{r}
+
+s_df <- 
+  data.frame(
+    sapply(prob_1 %>% select(complaint_rate_1000, revenue, hours), min),
+    sapply(prob_1 %>% select(complaint_rate_1000, revenue, hours), max),
+    sapply(prob_1 %>% select(complaint_rate_1000, revenue, hours), mean),
+    sapply(prob_1 %>% select(complaint_rate_1000, revenue, hours), sd)
+  )
+
+
+colnames(s_df) <- c("Min", "Max", "Mean", "S.D")
+
+
+s_df$Variables <- rownames(s_df)
+rownames(s_df) <- NULL
+
+round_2 <- function(x){round(x,2)}
+s_df[, 1:(length(s_df)-1)] <- lapply(s_df[, 1:(length(s_df)-1)], round_2)
+
+
+s_df <- s_df %>% select(Variables, everything())
+
+s_df %>% 
+  kbl(caption = "Summary of Numeric Variables", 
+      booktabs = T) %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+```
+
+```{r}
+
+prob_1_model_data <- prob_1 %>% select(complaint_rate_1000, residency , gender, revenue, hours)
+
+cor_m <- data.frame(cor(prob_1_model_data %>% select(-gender, -residency)))
+
+rownames(cor_m) <-  c("Complaint Rate per 1,000", "Revenue", "Hours Worked")
+
+cor_m %>% 
+  kbl(col.names = c("Complaint Rate per 1,000", "Revenue", "Hours Worked"), 
+      caption = "Correaltion of Numeric Covariates", 
+      booktabs = T)
+
+```
+
+```{r}
+  ggplot(data = prob_1_model_data, 
+         aes(x = revenue, 
+             y = complaint_rate_1000)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Revenue") + 
+    ylab("Complaints Per 1000") + 
+    labs(color = "Line Type") + 
+    ggtitle("Relationship between Revenue and Complaint Rate")
+```
+
+```{r}
+  ggplot(data = prob_1_model_data, 
+         aes(x = hours, 
+             y = complaint_rate_1000)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Hours Worked") + 
+    ylab("Complaints Per 1000") +  
+    labs(color = "Line Type") + 
+    ggtitle("Relationship between Hours Worked and Complaint Rate")
+```
+
+
+We have categorical predictors also: 
+
+* Residency has two levels: `r paste(unique(prob_1$residency) )` with `r paste0(round(table(prob_1$residency)/nrow(prob_1),4)*100, "%")` class presence respectively
+
+* Gender has two levels: `r paste(unique(prob_1$gender) )` with `r paste0(round(table(prob_1$gender)/nrow(prob_1),4)*100, "%")` class presence respectively
+
+**Overall** comments on variables 
+
+**Model Assumptions** 
+
+* one 
+
+* two 
+
+*three 
+
+**Model Statement** 
+
+$$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * Residency + \hat \beta_2 * Gender + \hat \beta_3 * Revenue + \hat \beta_4 * Hours \ Worked$$
+
+**Overall ANOVA** 
+
+```{r}
+
+full <- lm(complaint_rate_1000 ~ ., data = prob_1_model_data)
+
+SSR <- sum(
+  (full$fitted.values - mean(prob_1_model_data$complaint_rate_1000))^2
+)
+
+SSE <- sum(full$residuals^2)
+SSTO <- sum((mean(prob_1_model_data$complaint_rate_1000) - prob_1_model_data$complaint_rate_1000)^2 )
+  
+df_ssr <- length(prob_1_model_data) - 1
+df_sse <- nrow(prob_1_model_data) - length(prob_1_model_data)
+
+res <- 
+  data.frame(
+    Source = c("Regression", "Error", "Total"), 
+    SSR = c(SSR, SSE, SSTO), 
+    DF = c(df_ssr, df_sse, nrow(prob_1_model_data)-1)
+  )
+
+res$MS <- NA
+res[1:2,]$MS <- res[1:2,]$SSR / res[1:2,]$DF
+
+res$`F Statistic` <- NA
+res[1,]$`F Statistic` <- round((SSR/df_ssr) / (SSE/df_sse),2)
+
+res$`P(F* > F)` <- NA
+res[1,]$`P(F* > F)` <- round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)
+  
+res %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+
+```
+
+* Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1}$
+
+* Alternative Hypothesis: $H_a:$ Not all coefficients $\beta_i$ are zero
+
+* $F-$statistic: `r round((SSR/df_ssr) / (SSE/df_sse),2)`
+
+* Cutoff $F^*$-statistic: `r round(qf(1-.05, df1 = df_ssr, df2 = df_sse),4)`
+
+* So, $F < F^*$, therefore we do not have enough evidence to reject the null hypothesis to conclude that some or all 
+  coefficients $\beta_i$ are consistently different from zero. 
+
+* Moreover, $P(F^* > F) =$ `r round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)`
+  
+* Conclusion: 
+
+**Regression Coefficients** 
+
+```{r}
+res_reg <- data.frame(summary(full)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+* R square and `r round(summary(full)$r.square,4)`
+
+* Adjusted R Square `r round(summary(full)$adj.r.squared,4)`
+
+* Explain Coefficients 
+
+## 1- B
+
+T-test for hours worked 
+
+```{r}
+tv <- res_reg[res_reg$Predictor == "hours", ]$`T Value`
+pv <- res_reg[res_reg$Predictor == "hours", ]$`P value`
+```
+
+*   Null Hypothesis: $H_0: \hat \beta_4 = 0$
+
+*   Alternative Hypothesis: $H_a:  \hat \beta_4 \neq 0$$
+
+*   Test statistic $T:$ `r tv`
+
+*   $P(t^* > t) =$ `r pv`
+
+* Conclusion
+
+```{r}
+est <- res_reg[res_reg$Predictor == "hours", ]$`Estiamte`
+
+se <- res_reg[res_reg$Predictor == "hours", ]$`Standard Error`
+
+ci <- data.frame(confint(full))
+
+ci$name <- rownames(ci)
+
+est_lb <- round(ci[ci$name == "hours", ]$X2.5.., 6)
+est_ub <- round(ci[ci$name == "hours", ]$X97.5.., 6)
+  
+```
+
+Interpretation of  coefficient
+One additional Hour worked results in `r est` additional complaints on average. 
+However, it makes more sense to say look at 100 hours, which is `r est * 100`
+
+**C.I.** 
+
+Using formula $C.I. \ bounds = Estimate \pm 1.96 * Standard \ Error$
+
+C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r est_ub`)
+
+## 1- C
+
+```{r}
+
+resid_plot_df <- 
+  data.frame(
+    resid = full$residuals, 
+    fit = full$fitted.values
+  )
+
+ggplot(data = resid_plot_df, 
+       aes(x = fit, 
+           y = resid)) + 
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Relationship between Hours Worked and Complaint Rate") +  
+    labs(color = "Line Type")
+
+```
+
+
+## 1- D
+
+Effect plots needed here, find a nice package 
+
+\newpage 
+
+# Problem 2
+
+## 2 - A
+
+## 2 - B
+
+## 2 - C
+
+## 2 - D
+
