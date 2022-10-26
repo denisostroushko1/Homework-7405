@@ -549,6 +549,14 @@ kbl(sum2, booktabs = T, caption = "Original Scale Regression Estimates") %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
+```{r, echo = F}
+p_vals <- data.frame(summary(y1_lm1)$coefficients)[2:nrow(data.frame(summary(y1_lm1)$coefficients)),4]
+
+# c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY",
+#   "fdr", "none")
+
+```
+
 * It appears that at the $\alpha = 0.05$ significance level, participants from group 6 and 
   higher levels of income saw their measurements consistently reduced, after adjusting for other 
   predictors. Other variables do not show a statistically significant relationship with 
