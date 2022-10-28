@@ -13,7 +13,7 @@ editor_options:
 
 
 ```{r, echo = F}
-knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H")
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
 options(scipen=999)
 ```
 
@@ -38,6 +38,10 @@ prob_1$complaint_rate_1000 <- with(prob_1, complaint / n_visits * 1000)
 
 ## 1- A
 
+Before fitting the model I like to explore the distribution shpare of the response variable and collect some fundamental 
+summary statistics. Knowing the shape and the spread of the response variable will help us manage the expectation regarding model fit 
+and variance of residuals. 
+
 ```{r complain rate plot}
 
 ggplot(data = prob_1, 
@@ -47,16 +51,30 @@ ggplot(data = prob_1,
   geom_vline(aes(colour = "Average Complaint Rate", xintercept = mean(complaint_rate_1000)), size = 1) + 
   geom_vline(aes(colour = "Median Complaint Rate", xintercept = median(complaint_rate_1000)), size = 1) + 
   scale_color_manual(values = c("Average Complaint Rate" = "blue", "Median Complaint Rate" = "red")) + 
-  labs(color = "Summary Statistics") + 
   
   xlab("Complaint Rates Per 1,000") + 
   ylab("Count") + 
   ggtitle(paste("Disbtribution of Complaint Rates per 1,000 Visits", 
                 "\n Average: ", round(mean(prob_1$complaint_rate_1000), 2), 
-                "\n Median: ", round(median(prob_1$complaint_rate_1000), 2))) + 
+                "\n Median: ", round(median(prob_1$complaint_rate_1000), 2)))  + 
+  
+  theme(legend.position = "bottom") + 
+  guides(color = guide_legend(nrow=2, byrow=TRUE)) + 
   theme_minimal()
 
 ```
+
+```{R, eval  =F}
+
+```
+
+The distribution of complaints per 1,000 visits somewhat balanced without extreme outliers. The mean is pretty close to the 
+median, suggesting again that more extreme values on the upper end of complaints per 1,000 do not knew the mean very much. 
+
+The two tables below describe the distribution of numeric variables in the data set, as well as correlation between the three of them.
+
+We can see that the scales of predictors and complaints per 1,000 vary greatly, so we should expect that the coefficients are 
+going to be very small, probably in the $0.001$ to $0.0001$ range. 
 
 ```{r}
 
@@ -102,6 +120,9 @@ cor_m %>%
 
 ```
 
+We continue to perform explanatory data analysis in this section by looking at the scatter plots of predictors versus complaint 
+rates. It does not appear that revenue is related to complaint rate at all. 
+
 ```{r}
   ggplot(data = prob_1_model_data, 
          aes(x = revenue, 
@@ -113,12 +134,19 @@ cor_m %>%
     geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
     scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
     
+    theme(legend.position = "bottom") + 
+    guides(color = guide_legend(nrow=2, byrow=TRUE)) + 
+    
     theme_minimal() + 
     xlab("Revenue") + 
     ylab("Complaints Per 1000") + 
     labs(color = "Line Type") + 
     ggtitle("Relationship between Revenue and Complaint Rate")
 ```
+
+We can see that the number of hours worked is somewhat linearly related to the complaint rates, suggesting the practitioners
+who work more hours tend to accumulate higher complaint rate, however, the the variance of values is very large around the 
+suggested regression line, so we might not be able to detect a statistically significant relationship when fitting the model. 
 
 ```{r}
   ggplot(data = prob_1_model_data, 
@@ -131,6 +159,9 @@ cor_m %>%
     geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
     scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
     
+    theme(legend.position = "bottom") + 
+    guides(color = guide_legend(nrow=2, byrow=TRUE)) + 
+    
     theme_minimal() + 
     xlab("Hours Worked") + 
     ylab("Complaints Per 1000") +  
@@ -138,29 +169,78 @@ cor_m %>%
     ggtitle("Relationship between Hours Worked and Complaint Rate")
 ```
 
+Overall, both plots suggest that linear fit is appropriate for both of these variables. Smooth Loess function does not show 
+any consistent curvature in the data, but rahter randomly fluctuates around the fitted regression line. 
 
 We have categorical predictors also: 
 
-* Residency has two levels: `r paste(unique(prob_1$residency) )` with `r paste0(round(table(prob_1$residency)/nrow(prob_1),4)*100, "%")` class presence respectively
+Residency has two levels: `r paste(unique(prob_1$residency) )` with `r paste0(round(table(prob_1$residency)/nrow(prob_1),4)*100, "%")` class presence respectively. It does not appear that the median and mean values are different across the two residency levels. 
 
-* Gender has two levels: `r paste(unique(prob_1$gender) )` with `r paste0(round(table(prob_1$gender)/nrow(prob_1),4)*100, "%")` class presence respectively
+```{r}
+ggplot(data = prob_1_model_data, 
+       aes(x = residency, 
+           y = complaint_rate_1000)) + 
+    
+    geom_point() + 
+    
+    geom_boxplot()+ 
+    
+    theme_minimal() + 
+    xlab("Recidency") + 
+    ylab("Complaints Per 1000") +  
+    labs(color = "Line Type") + 
+    ggtitle("Relationship Residency Status and Complaint Rate")
+```
 
-**Overall** comments on variables 
+Gender has two levels: `r paste(unique(prob_1$gender) )` with `r paste0(round(table(prob_1$gender)/nrow(prob_1),4)*100, "%")` class presence respectively. It does not appear that the median and mean values are different across the two gender levels. 
 
-**Model Assumptions** 
+```{r }
 
-* one 
+ggplot(data = prob_1_model_data, 
+       aes(x = gender, 
+           y = complaint_rate_1000)) + 
+    
+    geom_point() + 
+    
+    geom_boxplot()+ 
+    
+    theme_minimal() + 
+    xlab("Gender") + 
+    ylab("Complaints Per 1000") +  
+    labs(color = "Line Type") + 
+    ggtitle("Relationship Gender Status and Complaint Rate")
 
-* two 
+```
 
-*three 
+Now we are ready to fit and examine the Normal Error Regression Model. When fitting any kind of a model, we need to be careful with 
+the assumptions we take on. **Model Assumptions**  are listed below
 
-**Model Statement** 
+1. Residuals, Error Terms, are normally distributed with mean $\mu = 0$ and constant variance $\sigma^2$. 
+
+2. Since fitted values depend on model parameters $\hat \beta_i$ and errors $e_i$ , we assume each outcome $Y_i$ comes from a normal distribution with mean $\mu = E[Y_i]$ and variance $\sigma^2$. 
+
+3. We assume that variance of residuals is constant. 
+
+4. Errors are independent and each unit of interest, a data point, is also independent of other observations in the sample. 
+
+5. The model is linear because $\hat Y_i$ can be expressed as a linear combination of weights, coefficients, $\hat \beta_i$ and 
+constant observed data points $X_i$. 
+
+6. Predictors are not correlated or weakly correlated. 
+
+After listing model assumptions, we can state the mode: 
+
 $$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2 + \hat \beta_3 * X_3 + \hat \beta_4 * X_4 = $$
 
 $$\Large E[Complaint \ Rate] = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_2 * Hours \ Worked  + \hat \beta_3 *Gender  + \hat \beta_4 * Residency $$
 
 **Overall ANOVA** 
+
+Before investigating individual coefficients and t-test for predictors, we want to look at the overall ANOVA table, and overall 
+F-test. We want to see if the set of all predictors is helpful at explaining the variance of complaint rates per 1,000, and therefore
+we will know if some of all coefficients are statistically different from 0. 
+
+ANOVA table for the F-test is given below: 
 
 ```{r}
 
@@ -211,9 +291,12 @@ res %>%
 
 * Moreover, $P(F^* > F) =$ `r round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)`
   
-* Conclusion: 
+* Conclusion: There is not enough statistical evidence that every predictor has a coefficient different from 0. Therefore, we can't 
+reject the null hypothesis. When we look at the individual t tests for coefficients, we might see some suggestive relationships, 
+supported by the somewhat big values of the t-statistic and small p-values, but none of them should be statistically significant. 
 
-**Regression Coefficients** 
+Table below shows **Regression Coefficients** and model summary. Like we expected, these coefficients are small becuase the scale and 
+range of predictors and response vairable are not the same. 
 
 ```{r}
 res_reg <- data.frame(summary(full)$coefficients)
@@ -230,17 +313,47 @@ colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P 
 res_reg %>%
   kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
+
+rev_c  <- res_reg[res_reg$Predictor == "revenue", ]$`Estiamte`
+h_c  <- res_reg[res_reg$Predictor == "hours", ]$`Estiamte`
+m_c  <- res_reg[res_reg$Predictor == "genderM", ]$`Estiamte`
+r_c  <- res_reg[res_reg$Predictor == "residencyY", ]$`Estiamte`
+
 ```
+
 
 * R square and `r round(summary(full)$r.square,4)`
 
 * Adjusted R Square `r round(summary(full)$adj.r.squared,4)`
 
-* Explain Coefficients 
+* Coefficients explanation: 
+
+    + `revenue` is revenue in dollars per hour is a continuous predictor. When revenue increases by 1 dollar per hour, 
+      we expect the number of complaints to increase by `r rev_c`, after adjusting for other predictors. 
+      
+    + `hours` is the number of hours worded, and is a continuous predictor. With each additional hour of work, 
+      we expect the number of complaints to increase by `r rev_c`, after adjusting for other predictors. 
+    
+    + `genderM` is a coefficient for the group of men practitioners, when compared with women practitioners, which is a reference
+        level here. Physicians who are men on average are expected to have `r m_c` more complaints per 1,000 when compared with the 
+        women physicians after adjusting for other predictors. 
+        
+    + `residencyY` is a coefficient for the group of practitioners who have a residency fellowship, 
+        compared with practitioners who do not participate in such program, which is a reference
+        level here. Physicians with fellowship are expected to have `r abs(r_c)` less complaints per 1,000 when compared with the 
+        women physicians after adjusting for other predictors. 
+
+* As expected, none of these predictors show any evidence of statistical significance, but the results are not contradictory. 
+  Doctors who are trained to work in emergency medicine should be able to do their work better, and therefore should have less 
+  complaints. Additional hours may result in extra complaints, if the doctor is overworked and their ability to perform 
+  reduces. 
 
 ## 1- B
 
-T-test for hours worked 
+A special interest is to investigate how the extra hours of work impact the average complaint rate for each practitioner, given 
+their characteristics we adjust for. 
+
+We begin the inference of this variable with a formal t-test. 
 
 ```{r}
 tv <- res_reg[res_reg$Predictor == "hours", ]$`T Value`
@@ -255,11 +368,14 @@ pv <- res_reg[res_reg$Predictor == "hours", ]$`P value`
 
 *   $P(t^* > t) =$ `r pv`
 
-* Conclusion
+* Conclusion: p-value is above 0.05 so there is not enough statistical evidence to reject the null hypothesis to conclude that the 
+  additional hour of work consistently results in the average increase of complaint rates. However, the p-value is not greatly 
+  far for the accepted significance level, so, this relationship is suggestive. Perhaps, with mode data, or a better statistical 
+  model we will be able to verify that this relationship is in fact consistent. My recommendation to the managers and decision 
+  makers would be to pay close attention to this factor, because even thoght the test shows no significance, the relationship is 
+  perhaps still real, and can't be detected from this sample. 
 
 ```{r}
-est <- res_reg[res_reg$Predictor == "hours", ]$`Estiamte`
-
 se <- res_reg[res_reg$Predictor == "hours", ]$`Standard Error`
 
 ci <- data.frame(confint(full))
@@ -271,23 +387,48 @@ est_ub <- round(ci[ci$name == "hours", ]$X97.5.., 6)
   
 ```
 
-Interpretation of  coefficient
-One additional Hour worked results in `r est` additional complaints on average. 
-However, it makes more sense to say look at 100 hours, which is `r est * 100`
+One additional Hour worked results in `r h_c` additional complaints on average. 
+
+However, it makes more sense to, say, look at 20 hours. So, an average increase in complaint rates per 1,000 is 
+`r h_c` * 20 = `r h_c * 20`. 
+
+It is reasonable to expect that a practitioner who is overworked will have an extra 20 hours of work on top of regular hours in 
+one week, especially in a busy or underfunded facility. 
+
 
 **C.I.** 
 
 Using formula $C.I. \ bounds = Estimate \pm 1.96 * Standard \ Error$
 
-C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r est_ub`)
+C.I. for the estimate `r h_c` with a `r se` standard error is (`r est_lb`, `r est_ub`)
+
+Similar to the coefficient, we can perform a linear transformation of the lower and upper bounds, and obtain a confidence
+interval for the effect of extra 20 hours of work. So, an average increase in complaint rates per 1,000 for the extra 20 hours 
+of work is `r h_c` * 20 = `r h_c * 20`, with a confidence interval (`r est_lb * 20`, `r est_ub * 20`). 
+
+It appears that most of the confidence interval is above 0, in fact, `r round(est_ub/(est_ub - est_lb),4)*100 `% of values in 
+the confidence interval are above 0. So, even though this evidence is pretty weak, we would still pay attention to this variables 
+as a source of Y variance explanation. 
+
+\newpage 
 
 ## 1- C
+
+The plot below shows the relationship between fitted values and studentized residuals from the regression model we built and 
+evaluated in the previous two sections. There is no linear trend, as evidenced by the flat fitted regression line. 
+
+Smooth trend line suggests that either there is some violation of assumptions at the lower and upper ends of the fitted values, 
+or there is simply a small number of values there. 
+
+In any case, variance appears to be somewhat constant, we do not see a megaphone or a violin shape. However, residuals above 
+0 tend to have an upper bound of around 2, whereas residuals below 0 tend to have a lower bound of around 1.5. Overall, this is 
+not a huge cause for concern, but something we should keep an eye. 
 
 ```{r}
 
 resid_plot_df <- 
   data.frame(
-    resid = full$residuals, 
+    resid = rstandard(full) , 
     fit = full$fitted.values
   )
 
@@ -308,10 +449,23 @@ ggplot(data = resid_plot_df,
 
 ```
 
+\newpage
 
 ## 1- D
 
-Effect plots needed here, find a nice package 
+In order to evaluate the nature of the relationship between complaint rates per 1,000 and the number of hours worked after adjusting
+for the other 3 predictors we use an added variable plot. In order to do that we will need to obtain two sets of residuals from 
+the two models: 
+
+* Model 1: obtains residuals for $Y = $ Complaints per 1,000 visits. We denote these residuals as $\epsilon_Y = e(Y|X_1, ..., X_4)$: 
+
+    + $\Large Y = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_2 * Hours \ Worked  + \hat \beta_3 *Gender  + \hat \beta_4 * Residency + \epsilon_{Y}$
+    
+* Model 2: obtains residuals for $X_2 = $ Number of Hours Worked. We denote these residuals as $\epsilon_X = e(X_2|X_1, X_3, X_4)$: 
+
+    + $\Large X_2 = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_3 *Gender  + \hat \beta_4 * Residency + \epsilon_{x}$
+    
+Plot below shows the relationship between the two sets of predictors: 
 
 ```{r}
 y_reg <- lm(complaint_rate_1000 ~ residency + gender + revenue, data = prob_1_model_data)
@@ -320,7 +474,8 @@ x_reg <- lm(hours ~ residency + gender + revenue, data = prob_1_model_data)
 d <- 
   data.frame(
     y_res = y_reg$residuals,
-    x_res = x_reg$residuals
+    x_res = x_reg$residuals, 
+    x_2_var = prob_1_model_data$hours
   )
 
   ggplot(data = d, 
@@ -334,10 +489,43 @@ d <-
     scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
     
     theme_minimal() + 
-    xlab("X Residuals") + 
-    ylab("Y Residuals") +  
+    
+    xlab("e[X_2 | X_1, X_3, X_4]") +
+    ylab("e[Y | X_1, X_2, X_3, X_4]") +
+    
     labs(color = "Line Type") + 
     ggtitle("Added Variable Plot for the Number of Hours Worked")
+  
+```
+
+This plots gives us two pieces fo evidence that we sue to describe the marginal relationship of $X_2$ and $Y$, after adjusting 
+for three other predictors: 
+
+1. The relationship between $X_2$ and $Y$, after accounting for other predictors, is linear in its nature. We can see that the 
+    smooth trend line fluctuates randomly around the fitted regression line, suggesting that there is no consistent curved,
+    or other non-linear relationship between the number of hours worked and the complaint rate. 
+    
+2. The fitted regression line that confirm linear relationship has a positive, upward facing, slope, suggesting that the number 
+    of hours worked can be used a potentially useful predictor that help increase the percentage of variation of in the 
+    complaint rate. This supports our previous conclusion that $X_2$ may be employed as a useful predictor of $Y$, but this 
+    model does not gives us enough sufficient evidence to make such a claim. 
+
+```{r, eval = F}
+  ggplot(data = d, 
+         aes(x = x_2_var, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Hours Worked") + 
+    ylab("Y Residuals") +  
+    labs(color = "Line Type") + 
+    ggtitle("Residulas against Number of Hours Worked")
 ```
 
 \newpage 
@@ -353,6 +541,15 @@ colnames(prob_2) <- c("county", "delta_deaths", "total_deaths", "size", "v_rate"
 ```
 
 ## 2 - A
+
+In order to pick between the tow-sample T-test and Wilcoxon test we need to understand the shape of the distribution, in particular 
+the spread of values, and the effect that extreme values and outliers can have on the t-test. While t-test is robust and produces 
+that we can rely on, it is known that in heavily skewed distributions non-parametric methods that rely on rank of observations 
+will be more effective. On the other hand, if we do not see a heavily skewed distribution, but instead see a distribution that is 
+approximately normal, we want to use a t-test, because for such data Wilcoxon has only 95% of statistical power of the the T-test. 
+
+The plot below shows vaccination rates for the metro area counties. It is pretty card to make any conclusions from this plot, and 
+this group of observations, since there are only `r nrow(prob_2 %>% filter(region == 1))` counties that make up Metro area. 
 
 ```{r}
 
@@ -374,6 +571,16 @@ ggplot(data = prob_2 %>% filter(region == 1),
 
 ```
 
+On the other hand, there are `r nrow(prob_2 %>% filter(region == 0))` Outstate counties. These counties produce a balanced 
+bell-shaped distribution that looks normal. However, there are a few outliers. Outstate counties with unusually high
+vaccination rates are: `r paste(prob_2[prob_2$v_rate > 87 & prob_2$region == 0, ]$county, collapse = " and ")` with 
+`r paste(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$v_rate, collapse = " and ")` vaccination rates, respectively. 
+
+Olmsted county includes Rochester, a pretty big city by the outstate standards. Moreover, Mayo clinic is located there, so we 
+can speculate that more people should have more trusting relationship with medicine and public health there. 
+
+Cook county is located by the Canadian Border, I am not sure what conclusion we can draw from this fact. 
+
 ```{r}
 
 ggplot(data = prob_2 %>% filter(region == 0), 
@@ -394,11 +601,9 @@ ggplot(data = prob_2 %>% filter(region == 0),
 
 ```
 
-**Outlier**: `r paste(prob_2[prob_2$v_rate > 87 & prob_2$region == 0, ]$county)`
-`r paste(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$v_rate)`
-
-Olmsted includes Rochester
-Cook is by the Canadian Border 
+The table below summarized two distributions in terms of most common summary statistics. This table gives me the impression that 
+we will be able to conclude that the two sample means are in fact different because the we have small standard deviations, 
+while the two means are quite different. 
 
 ```{r}
 ## summarize the data 
@@ -421,13 +626,16 @@ prob_2 %>%
 
 ```
 
--   **Normality of Vaccination Rates**
+Before conducting the test, we also wish to see if the overall distribution of the two samples combined is normal. Recall, there 
+are only `r nrow(prob_2 %>% filter(region == 1))` counties in the metro area, so we should combine the two samples for this 
+verification. 
 
-In order to test outliers for normality we plot the residuals against
-expected values of residuals in a normally distributed random sample.
+We can test the Normality of Vaccination Rates distribution against the expected quantiles of standard normal distribtuion. 
 
 We can calculate these expected values using the formula:
 $$\sqrt {Variance} \times z(\frac{Value - .375}{N + .25}) $$
+
+It appears that the sample of data we have is approximately normally distributed. 
 
 ```{r}
 
@@ -453,11 +661,8 @@ ggplot(data= prob_2_n,
 
 ```
 
-Use T test here. 
-  No heavy tails or skewed distributions 
-  So nothing should affect the results of the T test 
-  In such samples wilcoxon only has 95% of statistical power that the t test brings, so we will use the t test 
-
+Therefore, we will use T test here. 
+  
 ```{r}
 
 wil_res <- 
@@ -483,11 +688,11 @@ med_0 <- mean((prob_2 %>% filter(region == 0))$v_rate)
 
 ```
 
-Test results summary and interpretation:
+Test results summary and interpretation are given below:
 
-*   Null Hypothesis: $H_0: Mean_{metro \ area} = Mean_{outstate}$ 
+*   Null Hypothesis: $H_0: \mu_{metro \ area} = \mu_{outstate}$ 
 
-*   Test statistic: $H_a: Mean_{metro \ area} \neq Mean_{outstate}$
+*   Test statistic: $H_a: \mu_{metro \ area} \neq \mu_{outstate}$
 
 *   Metro area mean vaccination rate is `r med_1`, while outstate median vaccination mean is `r med_0`
 
@@ -497,7 +702,9 @@ Test results summary and interpretation:
 
 *   $P(T^* > T) =$ `r round(t_test$p.value,6)`
 
-* Conclusion: 
+* Conclusion: P-value is small, so we can reject the null hypothesis and conclude that the average difference in vaccination rates 
+  on the county level is statistically significant between metro and rural areas. On average, we can expect metro area counties 
+  to have `r med_0-med_1` vaccines per 1,000 county residents. 
     
 ## 2 - B
 
@@ -505,6 +712,8 @@ Test results summary and interpretation:
 prob_2$death_rate <- with(prob_2, delta_deaths / size)
 ```
 
+Once again, we begin the problem with the distribution visualization. 
+Due to a small number of obsevartion in this sample, 
 
 ```{r}
 
@@ -569,7 +778,7 @@ prob_2 %>%
   select(Reg, everything()) %>% 
 ## pipe it into kable right away
     kbl(booktabs = T, 
-        caption = "Vaccination Rates Summary by County Type", 
+        caption = "Death Rates Summary by County Type", 
         col.names = c("Type", "N", "Mean", "Median", "S.D.")) %>%
       kable_styling(latex_options = c("HOLD_position", "striped"))
 
@@ -635,9 +844,9 @@ med_0 <- mean((prob_2 %>% filter(region == 0))$death_rate)
 
 Test results summary and interpretation:
 
-*   Null Hypothesis: $H_0: Mean_{metro \ area} = Mean_{outstate}$ 
+*   Null Hypothesis: $H_0: \mu_{metro \ area} = \mu_{outstate}$ 
 
-*   Test statistic: $H_a: Mean_{metro \ area} \neq Mean_{outstate}$
+*   Test statistic: $H_a: \mu_{metro \ area} \neq \mu_{outstate}$
 
 *   Metro area mean vaccination rate is `r med_1`, while outstate median vaccination mean is `r med_0`
 
@@ -699,9 +908,6 @@ res %>%
 
 ```
 
-```{r}
-anova(lm(death_rate ~ 1, data = prob_2), death_lm)
-```
 
 * Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1}$
 
@@ -787,12 +993,34 @@ C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r es
 
 ## 2 - D
 
+We definitely have non-constant variance 
+
+Procedure: Reg 14 Slide 62
+
+Book pages 421-431
+
+
 ```{r}
+
+# another implementation: this is the correct version I would say. 
+
+weights3 <- 1 / lm((death_lm$residuals)^2 ~ death_lm$fitted.values)$fitted.values^2 # best yet after 2 
+weights6 <- 1 / abs(lm((death_lm$residuals)^2 ~ v_rate + region, data = prob_2)$fitted.values) # a little better too 
+
+# 3 abd 6 are the two best implementations, so I will do both of them and then compare and contrast and will provide my 
+# answer like that cause I really do not know what to do 
+
+
+death_lm_3 <- 
+  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights3)
+
+death_lm_6 <- 
+  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights6)
 
 resid_plot_df <- 
   data.frame(
-    resid = death_lm$residuals, 
-    fit = death_lm$fitted.values
+    resid = rstandard(death_lm_3), 
+    fit = death_lm_3$fitted.values
   )
 
 ggplot(data = resid_plot_df, 
@@ -807,15 +1035,54 @@ ggplot(data = resid_plot_df,
     theme_minimal() + 
     xlab("Fitted Values") + 
     ylab("Residuals") + 
-    ggtitle("Relationship between Hours Worked and Complaint Rate") +  
+    ggtitle("Predicted Values And Studentized Residuals From Method 1") +  
+    labs(color = "Line Type")
+
+resid_plot_df <- 
+  data.frame(
+    resid = rstandard(death_lm_6), 
+    fit = death_lm_6$fitted.values
+  )
+
+ggplot(data = resid_plot_df, 
+       aes(x = fit, 
+           y = resid)) + 
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Predicted Values And Studentized Residuals From Method 2") +
+    labs(color = "Line Type")
+
+
+
+##################
+# ORIGINAL MODEL FOR COMPARISON
+
+resid_plot_df <-
+  data.frame(
+    resid = rstandard(death_lm),
+    fit = death_lm$fitted.values
+  )
+
+ggplot(data = resid_plot_df,
+       aes(x = fit,
+           y = resid)) +
+    geom_point() +
+
+    geom_smooth(aes(color = "Smooth Trend Line")) +
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) +
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) +
+
+    theme_minimal() +
+    xlab("Fitted Values") +
+    ylab("Residuals") +
+    ggtitle("Predicted Values And Studentized Residuals \n From Unweighted Linear Model") +
     labs(color = "Line Type")
 
 ```
-
-We definitely have non-constant variance 
-
-Procedure: Reg 14 Slide 62
-
-Book pages 421-431
-
-
