@@ -38,7 +38,7 @@ prob_1$complaint_rate_1000 <- with(prob_1, complaint / n_visits * 1000)
 
 ## 1- A
 
-Before fitting the model I like to explore the distribution shpare of the response variable and collect some fundamental 
+Before fitting the model I like to explore the distribution shape of the response variable and collect some fundamental 
 summary statistics. Knowing the shape and the spread of the response variable will help us manage the expectation regarding model fit 
 and variance of residuals. 
 
@@ -170,7 +170,7 @@ suggested regression line, so we might not be able to detect a statistically sig
 ```
 
 Overall, both plots suggest that linear fit is appropriate for both of these variables. Smooth Loess function does not show 
-any consistent curvature in the data, but rahter randomly fluctuates around the fitted regression line. 
+any consistent curvature in the data, but rather randomly fluctuates around the fitted regression line. 
 
 We have categorical predictors also: 
 
@@ -295,8 +295,8 @@ res %>%
 reject the null hypothesis. When we look at the individual t tests for coefficients, we might see some suggestive relationships, 
 supported by the somewhat big values of the t-statistic and small p-values, but none of them should be statistically significant. 
 
-Table below shows **Regression Coefficients** and model summary. Like we expected, these coefficients are small becuase the scale and 
-range of predictors and response vairable are not the same. 
+Table below shows **Regression Coefficients** and model summary. Like we expected, these coefficients are small because the scale and 
+range of predictors and response variable are not the same. 
 
 ```{r}
 res_reg <- data.frame(summary(full)$coefficients)
@@ -372,7 +372,7 @@ pv <- res_reg[res_reg$Predictor == "hours", ]$`P value`
   additional hour of work consistently results in the average increase of complaint rates. However, the p-value is not greatly 
   far for the accepted significance level, so, this relationship is suggestive. Perhaps, with mode data, or a better statistical 
   model we will be able to verify that this relationship is in fact consistent. My recommendation to the managers and decision 
-  makers would be to pay close attention to this factor, because even thoght the test shows no significance, the relationship is 
+  makers would be to pay close attention to this factor, because even though the test shows no significance, the relationship is 
   perhaps still real, and can't be detected from this sample. 
 
 ```{r}
@@ -457,7 +457,7 @@ In order to evaluate the nature of the relationship between complaint rates per 
 for the other 3 predictors we use an added variable plot. In order to do that we will need to obtain two sets of residuals from 
 the two models: 
 
-* Model 1: obtains residuals for $Y = $ Complaints per 1,000 visits. We denote these residuals as $\epsilon_Y = e(Y|X_1, ..., X_4)$: 
+* Model 1: obtains residuals for $Y =$ Complaints per 1,000 visits. We denote these residuals as $\epsilon_Y = e(Y|X_1, ..., X_4)$: 
 
     + $\Large Y = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_2 * Hours \ Worked  + \hat \beta_3 *Gender  + \hat \beta_4 * Residency + \epsilon_{Y}$
     
@@ -465,7 +465,7 @@ the two models:
 
     + $\Large X_2 = \hat \beta_0 + \hat \beta_1 * Revenue + \hat \beta_3 *Gender  + \hat \beta_4 * Residency + \epsilon_{x}$
     
-Plot below shows the relationship between the two sets of predictors: 
+Plot below shows the relationship between the two sets of residuals: 
 
 ```{r}
 y_reg <- lm(complaint_rate_1000 ~ residency + gender + revenue, data = prob_1_model_data)
@@ -542,7 +542,7 @@ colnames(prob_2) <- c("county", "delta_deaths", "total_deaths", "size", "v_rate"
 
 ## 2 - A
 
-In order to pick between the tow-sample T-test and Wilcoxon test we need to understand the shape of the distribution, in particular 
+In order to pick between the two-sample T-test and Wilcoxon test we need to understand the shape of the distribution, in particular 
 the spread of values, and the effect that extreme values and outliers can have on the t-test. While t-test is robust and produces 
 that we can rely on, it is known that in heavily skewed distributions non-parametric methods that rely on rank of observations 
 will be more effective. On the other hand, if we do not see a heavily skewed distribution, but instead see a distribution that is 
@@ -630,7 +630,7 @@ Before conducting the test, we also wish to see if the overall distribution of t
 are only `r nrow(prob_2 %>% filter(region == 1))` counties in the metro area, so we should combine the two samples for this 
 verification. 
 
-We can test the Normality of Vaccination Rates distribution against the expected quantiles of standard normal distribtuion. 
+We can test the Normality of Vaccination Rates distribution against the expected quantiles of standard normal distribution. 
 
 We can calculate these expected values using the formula:
 $$\sqrt {Variance} \times z(\frac{Value - .375}{N + .25}) $$
@@ -704,7 +704,7 @@ Test results summary and interpretation are given below:
 
 * Conclusion: P-value is small, so we can reject the null hypothesis and conclude that the average difference in vaccination rates 
   on the county level is statistically significant between metro and rural areas. On average, we can expect metro area counties 
-  to have `r med_0-med_1` vaccines per 1,000 county residents. 
+  to have `r abs(med_0-med_1)` more vaccines administered per 1,000 county residents. 
     
 ## 2 - B
 
@@ -713,7 +713,8 @@ prob_2$death_rate <- with(prob_2, delta_deaths / size)
 ```
 
 Once again, we begin the problem with the distribution visualization. 
-Due to a small number of obsevartion in this sample, 
+Due to a small number of observations in the sample of metro counties we have a histogram that does not really provide much 
+information. 
 
 ```{r}
 
@@ -735,6 +736,9 @@ ggplot(data = prob_2 %>% filter(region == 1),
 
 ```
 
+Delta variant COVID related death rates for outstate counties looks approximately normally distributed with some heavy and obvious
+outliers. 
+
 ```{r}
 
 ggplot(data = prob_2 %>% filter(region == 0), 
@@ -753,15 +757,15 @@ ggplot(data = prob_2 %>% filter(region == 0),
                 "\n Median: ", round(median((prob_2 %>% filter(region == 0))$death_rate), 2))) + 
   theme_minimal()
 
-
+dr_out_county <- na.omit(paste(prob_2[prob_2$death_rate > 1.2 & prob_2$region == 0, ]$county))
 ```
-**Outlier**: `r paste(prob_2[prob_2$death_rate > 1.2 & prob_2$region == 0, ]$county)`
+This outlier is a `r dr_out_county` 
 
-Faribault county is kind of an outlier 
-
-Death Rates for Outleir counties Olmsted and Cook `r paste(round(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$death_rate,2))`
-
-`r paste(prob_2[prob_2$county %in% c("Olmsted", "Cook"), ]$v_rate)`
+Death Rates for this county is `r round(prob_2[prob_2$county == dr_out_county, ]$death_rate,6)[1]`,
+and the corresponding vaccination rate is `r round(prob_2[prob_2$county == dr_out_county, ]$v_rate,6)[1]`, which corresponds to the 
+`r round(length(which(prob_2$v_rate <= prob_2[prob_2$county == dr_out_county, ]$v_rate[1]))/length(prob_2[prob_2$region == 0, ]$v_rate),4)*100`th quantile 
+of vaccination rates for the outstate counties. Perhaps, a lower vaccination causes more COVID related death to happen, which 
+we will verify later in the problem. 
 
 ```{r}
 ## summarize the data 
@@ -776,7 +780,7 @@ prob_2 %>%
   mutate(Reg = ifelse(region == 1, "Metro", "Outstate")) %>% 
   select(-region) %>% 
   select(Reg, everything()) %>% 
-## pipe it into kable right away
+## pipe it into kale right away
     kbl(booktabs = T, 
         caption = "Death Rates Summary by County Type", 
         col.names = c("Type", "N", "Mean", "Median", "S.D.")) %>%
@@ -787,13 +791,7 @@ med_0 <- median((prob_2 %>% filter(region == 0))$death_rate)
 
 ```
 
--   **Normality of Death Rates**
-
-In order to test outliers for normality we plot the residuals against
-expected values of residuals in a normally distributed random sample.
-
-We can calculate these expected values using the formula:
-$$\sqrt {Variance} \times z(\frac{Death Rate - .375}{N + .25}) $$
+We visualize the values of death rate to those expected under the normal distribution. 
 
 ```{r}
 
@@ -842,7 +840,9 @@ med_0 <- mean((prob_2 %>% filter(region == 0))$death_rate)
 
 ```
 
-Test results summary and interpretation:
+It appears that there are no violations of normality, other than having a huge outlier on the upper end. 
+
+Test results summary and interpretation for the average death rates between metro and rural ares is given below:
 
 *   Null Hypothesis: $H_0: \mu_{metro \ area} = \mu_{outstate}$ 
 
@@ -856,7 +856,11 @@ Test results summary and interpretation:
 
 *   $P(T^* > T) =$ `r round(t_test$p.value,6)`
 
-* Conclusion: 
+*   Conclusion: P-value is small, so we can reject the null hypothesis and conclude that the average difference in death rates 
+    on the county level is statistically significant between metro and rural areas. On average, we can expect metro area counties 
+    to have `r med_0-med_1` COVID related death per 1,000 county residents. 
+
+\newpage 
 
 ## 2 - C
 
@@ -866,11 +870,11 @@ death_lm <- lm(death_rate ~ v_rate + region, data = prob_2)
 
 ```
 
-Model Specificantion 
+Model Specification 
 
-$$\Large E[Death Rate] = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2 = $$
+$$\Large E[Death \ Rate] = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2 = $$
 
-$$\Large E[Death Rate] = \hat \beta_0 + \hat \beta_1 * Vaccination \ Rate + \hat \beta_2 * Metro \ Area \ County \ Indicator$$
+$$\Large E[Death \ Rate] = \hat \beta_0 + \hat \beta_1 * Vaccination \ Rate + \hat \beta_2 * Metro \ Area \ County \ Indicator$$
 
 **Overall ANOVA test**
 
@@ -883,7 +887,7 @@ SSR <- sum(
 SSE <- sum(death_lm$residuals^2)
 SSTO <- sum((mean(prob_2$death_rate) - prob_2$death_rate)^2 )
   
-df_ssr <- 2 # for 2 preictors 
+df_ssr <- 2 # for 2 predictors 
 df_sse <- nrow(prob_2) - 3 # - (2 + 1)
 
 res <- 
@@ -922,9 +926,12 @@ res %>%
 
 * Moreover, $P(F^* > F) =$ `r round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)`
   
-* Conclusion: 
+* Conclusion: There is enough statistical evidence to reject the null hypothesis and conclude that at least one coefficient is 
+different from 0. Therefore, we will evaluate model output and find what explains variation in death rates on the county level.  
 
-**Model Estimates** 
+Table below shows **Regression Coefficients** and model summary. Like we expected, these coefficients are small because the scale and 
+range of predictors and response variable are not the same. 
+
 
 ```{r}
 res_reg <- data.frame(summary(death_lm)$coefficients)
@@ -950,24 +957,34 @@ pv <- res_reg[res_reg$Predictor == "region", ]$`P value`
 
 ```
 
-
-* R square and `r round(summary(death_lm)$r.square,4)`
+* R square `r round(summary(death_lm)$r.square,4)`
 
 * Adjusted R Square `r round(summary(death_lm)$adj.r.squared,4)`
 
+Note that $X_2$ is the metro/rural area flag indicator variable, so we conduct a formal t-test for this variable below: 
+
 *   Null Hypothesis: $H_0: \hat \beta_2 = 0$
 
-*   Alternative Hypothesis: $H_a:  \hat \beta_2 \neq 0$$
+*   Alternative Hypothesis: $H_a:  \hat \beta_2 \neq 0$
 
 *   Test statistic $T:$ `r tv`
 
 *   $P(t^* > t) =$ `r pv`
 
-* Conclusion
+*   Conclusion: the p-value is quite large, so we can't reject the null hypothesis. The only useful predictor is the vaccination rate, 
+    and it is a statistically significant predictor. This is a bit contradictory with the results that we saw in the individual t-tests. 
+    So far, we know that vaccination rates are higher for metro counties, while death rates are lower for the metro areas. 
+    But the regression model we used does not support the statement that death rates meaningfully differ between the two types of counties. 
+    Therefore, we can conclude that vaccination rates is either: 
+    
+      + a much stronger predictor than a county status 
+      
+      + a more likely conclusion is that the two are correlated, and the effect of vaccination rate already includes most of county effect 
+        into its coefficient 
 
-Interpretation of  coefficient
+**Interpretation of  coefficient**
 
-Metro Area expected to have `r round(abs(est),4)` deaths per 1,000 
+Metro Area is expected to have `r abs(round(abs(est),4))` less COVID related deaths per 1,000 residents 
 
 **C.I.** 
 
@@ -985,82 +1002,18 @@ est_ub <- round(ci[ci$name == "region", ]$X97.5.., 6)
   
 ```
 
-Using formula $C.I. \ bounds = Estimate \pm 1.96 * Standard \ Error$
+C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r est_ub`). 
+Note now the C.I. is pretty equally balanced around the estimate that is very close to 0, which gives us an even higher degree of 
+certainty that the difference between the metro and rural counties is more likely to be 0, after adjusting for vaccination rate. 
 
-C.I. for the estimate `r est` with a `r se` standard error is (`r est_lb`, `r est_ub`)
-
-* Conclusion on the effects of two predictors 
 
 ## 2 - D
 
-We definitely have non-constant variance 
+If we are suggested to use a weighted least squares linear model, then we must have a problem with constant variance assumption. 
 
-Procedure: Reg 14 Slide 62
-
-Book pages 421-431
-
+Let's look at the plot of studentized residuals versus predicted values.
 
 ```{r}
-
-# another implementation: this is the correct version I would say. 
-
-weights3 <- 1 / lm((death_lm$residuals)^2 ~ death_lm$fitted.values)$fitted.values^2 # best yet after 2 
-weights6 <- 1 / abs(lm((death_lm$residuals)^2 ~ v_rate + region, data = prob_2)$fitted.values) # a little better too 
-
-# 3 abd 6 are the two best implementations, so I will do both of them and then compare and contrast and will provide my 
-# answer like that cause I really do not know what to do 
-
-
-death_lm_3 <- 
-  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights3)
-
-death_lm_6 <- 
-  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights6)
-
-resid_plot_df <- 
-  data.frame(
-    resid = rstandard(death_lm_3), 
-    fit = death_lm_3$fitted.values
-  )
-
-ggplot(data = resid_plot_df, 
-       aes(x = fit, 
-           y = resid)) + 
-    geom_point() + 
-    
-    geom_smooth(aes(color = "Smooth Trend Line")) + 
-    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
-    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
-    
-    theme_minimal() + 
-    xlab("Fitted Values") + 
-    ylab("Residuals") + 
-    ggtitle("Predicted Values And Studentized Residuals From Method 1") +  
-    labs(color = "Line Type")
-
-resid_plot_df <- 
-  data.frame(
-    resid = rstandard(death_lm_6), 
-    fit = death_lm_6$fitted.values
-  )
-
-ggplot(data = resid_plot_df, 
-       aes(x = fit, 
-           y = resid)) + 
-    geom_point() + 
-    
-    geom_smooth(aes(color = "Smooth Trend Line")) + 
-    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
-    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
-    
-    theme_minimal() + 
-    xlab("Fitted Values") + 
-    ylab("Residuals") + 
-    ggtitle("Predicted Values And Studentized Residuals From Method 2") +
-    labs(color = "Line Type")
-
-
-
 ##################
 # ORIGINAL MODEL FOR COMPARISON
 
@@ -1086,3 +1039,199 @@ ggplot(data = resid_plot_df,
     labs(color = "Line Type")
 
 ```
+
+Indeed, we can see that variance of residuals is not constant for different levels of predicted values. 
+There is also a very obvious outlier here: a `r prob_2[which(rstandard(death_lm) > 4), ]$county` county. 
+We have a megaphone type
+pattern, and we have a variety of ways how we can construct weights for the updated regression model. 
+
+1. A remedial measure from chapter 11 of the textbook suggests that the can regress absolute values of residuals on the fitted values and 
+  obtain weights through the following variance function: 
+  
+  + So we have a regression model $\large |\epsilon_i| = \hat \beta_0 + \hat \beta_1 * \hat Y_i + error_i$
+  
+  + Weights for each observation is given by $\Large w_i = \frac{1}{E[|\epsilon_i|]}$
+  
+2. Another remedial measure is to fit the variance function using a different way: 
+
+  + Regression model for the variance function is $\large \epsilon_i^2 = \hat \beta_0 + \hat \beta_1 * Vaccination \ Rate +\hat \beta_2 * Metro \ Area\ Flag + error_i$
+  
+  + Weights for each observation is given by $\Large w_i = \frac{1}{E[\epsilon_i^2]}$
+
+**Method 1**
+
+We re-fit a linear model with weights using method 1 and provide a model summary below: 
+
+* `v_rate` is a variable for vaccination rates 
+* `region` is an indicator variable comparing metro areas with the outstate counties, which is a reference level
+
+```{r}
+
+# another implementation: this is the correct version I would say. 
+
+weights3 <- 1 / lm((death_lm$residuals)^2 ~ death_lm$fitted.values)$fitted.values^2 # best yet after 2 
+weights6 <- 1 / abs(lm((death_lm$residuals)^2 ~ v_rate + region, data = prob_2)$fitted.values) # a little better too 
+
+# 3 and 6 are the two best implementations, so I will do both of them and then compare and contrast and will provide my 
+# answer like that cause I really do not know what to do 
+
+
+death_lm_3 <- 
+  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights3)
+
+res_reg <- data.frame(summary(death_lm_3)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+After re-weighting the model using method 1, model estimates changed compared with the original model. Key differences are given below: 
+
+* R square changed from `r round(summary(death_lm)$r.square,4)` to `r round(summary(death_lm_3)$r.square,4)`
+
+* Adjusted R Square changed from `r round(summary(death_lm)$adj.r.squared,4)` to `r round(summary(death_lm_3)$adj.r.squared,4)`
+
+* Vaccination rates is still a statistically significant predictor, and the coefficient did not change meaningfully. 
+
+* County status' p-value dropped meaningfully, bringing closer to the level that will make us believe that the death rates are potentially 
+  higher in the metro area, on average, after adjusting for vaccination rates. This is quite a contradictory statement, 
+  however, we know the confidence interval is centered at around 0 for this predictor, therefore interpretation of this coefficient can 
+  produce misleading results 
+  
+We also evaluate the plot of studentized residuals with the fitted values from the regression model with weighting described in method 1.
+
+```{r}
+resid_plot_df <- 
+  data.frame(
+    resid = rstandard(death_lm_3), 
+    fit = death_lm_3$fitted.values
+  )
+
+ggplot(data = resid_plot_df, 
+       aes(x = fit, 
+           y = resid)) + 
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Predicted Values And Studentized Residuals From Method 1") +  
+    labs(color = "Line Type")
+
+```
+
+We can see that, overall, the variance of the residuals is in more balance. Yes, there is still some increase in residual values as fitted 
+values increase, but it stops at around fitted values of 0.3 for positive values of residuals. Negative residuals seem to be at around 
+-1 to -1.2 bound. One noticeable problem is the introduction of two more new outliers, where the model predicts a very low fitted value, 
+but the actual observed value differs meaningfully from the prediction. 
+
+**Method 2**
+
+I encountered one issue when implementing method 2. After fitting a regression model with squared residuals as the response variable, and 
+vaccination rates and county status as predictors, I obtained fitted values from the model, and some of them were negative, as 
+evidenced by the summary output below: 
+
+```{r, echo= T}
+weights6 <- 1 / lm( (death_lm$residuals)^2 ~  v_rate + region, data = prob_2)$fitted.values  
+summary(weights6)
+```
+
+It should not be the case as variance is always greater than 0. There are `r length(which(weights6 < 0))` counties where the output of the 
+variance function is below 0. Those values are: `r weights6[weights6 < 0]`, so, for this exercise, I will take an absolute value of 
+these values to make sure all inverse variance weights are above 0. 
+
+We re-fit a linear model with weights using method 1 and provide a model summary below: 
+
+* `v_rate` is a variable for vaccination rates 
+* `region` is an indicator variable comparing metro areas with the outstate counties, which is a reference level
+
+```{r}
+
+# another implementation: this is the correct version I would say. 
+
+weights3 <- 1 / lm((death_lm$residuals)^2 ~ death_lm$fitted.values)$fitted.values^2 # best yet after 2 
+weights6 <- 1 / abs(lm((death_lm$residuals)^2 ~ v_rate + region, data = prob_2)$fitted.values) # a little better too 
+
+# 3 and 6 are the two best implementations, so I will do both of them and then compare and contrast and will provide my 
+# answer like that cause I really do not know what to do 
+
+
+death_lm_6 <- 
+  lm(death_rate ~ v_rate + region, data = prob_2, weights = weights6)
+
+res_reg <- data.frame(summary(death_lm_6)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+
+After re-weighting the model using method 1, model estimates changed compared with the original model. Key differences are given below: 
+
+* R square changed from `r round(summary(death_lm)$r.square,4)` to `r round(summary(death_lm_6)$r.square,4)`
+
+* Adjusted R Square changed from `r round(summary(death_lm)$adj.r.squared,4)` to `r round(summary(death_lm_6)$adj.r.squared,4)`
+
+* Vaccination rates is still a statistically significant predictor, and the coefficient did not change meaningfully. 
+
+
+```{r}
+resid_plot_df <- 
+  data.frame(
+    resid = rstandard(death_lm_6), 
+    fit = death_lm_6$fitted.values
+  )
+
+ggplot(data = resid_plot_df, 
+       aes(x = fit, 
+           y = resid)) + 
+    geom_point() + 
+    
+    geom_smooth(aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = F, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Predicted Values And Studentized Residuals From Method 2") +
+    labs(color = "Line Type")
+```
+
+
+We can see that, overall, the variance of the residuals is in more balance. There is more increase in residual values as fitted 
+values increase for positive values of residuals, compared with method 1. We still could not deal with one outlier that is more than 4 
+studentized residuals away. Overall, lower bound for residuals does not exhibit any suggestions that there is a violation fo variance 
+assumption, but positive residuals still have non-constant variance, it appears. 
+
+**Overall**, the two methods of weighted linear regression produce three sets of estimates that agree with each other. All three models 
+showed that higher vaccination rates caused lower death rates after adjusting for metro/rural area status. 
+
+Metro/Outstate indicator was not statistically significant in any of the models. The point estimate for coefficient fluctuated above and 
+below zero in three models, but none of the test statistics and p-values showed enough evidence that this variable is a useful 
+predictor. 
+
