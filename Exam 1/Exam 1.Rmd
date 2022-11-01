@@ -64,9 +64,6 @@ ggplot(data = prob_1,
 
 ```
 
-```{R, eval  =F}
-
-```
 
 The distribution of complaints per 1,000 visits somewhat balanced without extreme outliers. The mean is pretty close to the 
 median, suggesting again that more extreme values on the upper end of complaints per 1,000 do not knew the mean very much. 
@@ -223,10 +220,6 @@ the assumptions we take on. **Model Assumptions**  are listed below
 
 4. Errors are independent and each unit of interest, a data point, is also independent of other observations in the sample. 
 
-5. The model is linear because $\hat Y_i$ can be expressed as a linear combination of weights, coefficients, $\hat \beta_i$ and 
-constant observed data points $X_i$. 
-
-6. Predictors are not correlated or weakly correlated. 
 
 After listing model assumptions, we can state the mode: 
 
@@ -1235,3 +1228,30 @@ Metro/Outstate indicator was not statistically significant in any of the models.
 below zero in three models, but none of the test statistics and p-values showed enough evidence that this variable is a useful 
 predictor. 
 
+
+
+
+* After test notes from Chap: 
+
+0. Need to focus on the interpretation of standard error, lost points for that 
+   + margin of error is approximately half the confidence interval 
+   + confidence interval is approximately 2 times the standard error 
+   + So the standard error is half the margin of error 
+   
+1. focus on how weighted least squared affect standard error of the estimate 
+
+2. study that in models with rates, variance is not constant since it is a function of some other things, 
+  so we most likely will always have a non-constant variance. 
+  Need to dig into it and include into the final guide to regression 
+  
+3. Focus on type of sum of squares, likely covered in book chapter 
+  Important to know because the standard method used by the software
+  will change what results we see and what we will report 
+
+4. We have to be more precise with our language 
+
+  + no definitive statements can be made about the graphs, 
+    i.e. can't say variance is constant or not, can only say it is "likely constant" ot "not" 
+    
+  + when reporting statistical test results, we have to be more clear with the accepted level confidence we use, 
+    beucase not everyone uses $\alpha=0.05$ all the time 

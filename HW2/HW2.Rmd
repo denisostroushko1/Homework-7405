@@ -2,25 +2,21 @@
 title: "Homework 2"
 author: "Denis Ostroushko"
 date: '`r as.Date(Sys.Date())`'
-output: html_document
-editor_options:
-  markdown:
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
     wrap: 72
 ---
 
-<!--
-Set up packages and fucntions 
---> 
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
 
-```{R, warning = F, message = F}
-
-# load packages 
-
-library(tidyverse)
-library(readxl)
-library(gridExtra)
-library(kableExtra)
-
+```{r, include = F, echo  = F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
 ```
 
 ```{r read initial data 4_2, message=F, warning=F}
@@ -118,8 +114,8 @@ sum_table <-
 colnames(sum_table) <- c("Variable", "N for Analysis", "Mean", "Median", "Standard Deviation")
 
 sum_table %>% 
-  kbl(align = c(rep('c', length(sum_table)))) %>% 
-  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center' )
+  kbl(align = c(rep('c', length(sum_table))), booktabs = T) %>% 
+  kable_styling(latex_options = "striped", full_width = F, position = 'center' )
 ```
 
 We do not have missing values, standard deviation is reasonable for both variables in relation to the average values. Mean and median are also 
@@ -334,8 +330,8 @@ sum_tab <-
 colnames(sum_tab) <- c("Variable", "N", "Mean", "Median", "Standard Deviation")
 
 sum_tab %>% 
-  kbl(align = rep(c(rep('c', length(sum_tab))))) %>% 
-  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+  kbl(align = rep(c(rep('c', length(sum_tab)))), booktabs = T) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"),full_width = F, position = 'center')
 
 ```
 

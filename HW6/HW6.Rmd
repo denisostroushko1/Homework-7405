@@ -670,7 +670,7 @@ for(i in 1:nrow(hoch_data)){
   if(hoch_data[i,2] > cur_level){
     cur_adj_n <- cur_adj_n + 1
     
-    holm_data[i,3] <- cur_level
+    hoch_data[i,3] <- cur_level
   }
 }
 

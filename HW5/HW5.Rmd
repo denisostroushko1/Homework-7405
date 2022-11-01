@@ -10,25 +10,14 @@ editor_options:
     wrap: 72
 ---
 
+
 ```{r, echo = F}
-knitr::opts_chunk$set(echo = T, message = F, warning = F, fig.pos = "!H")
+knitr::opts_chunk$set( message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
 options(scipen=999)
 ```
 
-```{r, include=F}
-library(tidyverse)
-library(kableExtra)
-library(readxl)
-library(gridExtra)
-library(ggeffects)
-```
-
-```{r, eval=F, echo = T}
-library(tidyverse)
-library(kableExtra)
-library(readxl)
-library(gridExtra)
-library(ggeffects)
+```{r, include = F, echo  = F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
 ```
 
 # 10.2
@@ -629,3 +618,214 @@ For example, in this problem we have
   
   $SSR(X_1|X_2) + SSR(X_2)$
   
+  
+# Appendix 
+
+```{r}
+ss <- function(x) {
+  sum((x - mean(x))^2)
+}
+```
+
+```{R}
+
+full_model <- lm(nnal ~ cpd + age + gender, data = cig)
+summary(full_model)
+
+```
+
+
+
+```{r}
+
+a <- data.frame(anova(lm(nnal ~ cpd + age + gender, data = cig)))
+a
+
+```
+
+<!--
+
+Okay I think I understand how to do the diagram now 
+
+Total variance of Y is a big bubble 
+
+Then there will be overlapping areas for predictors X_i 
+
+Variance of Y explained by X_i, after all other predictors is: 
+    total variance of y -
+      (
+      residuals of Y from a model with all predictors  + 
+      SSR(Y ~ all X bar X_i ) + 
+      SSR(Y ~ only X_i)
+      )
+
+--> 
+
+```{r}
+
+nnal_total <- ss(cig$nnal)    
+cpd_total <- ss(cig$cpd)  
+age_total <- ss(cig$age) 
+
+# total variance in residuals of Y - unexplained by cig and age 
+y_alone <- aov(nnal ~ cpd + age, data = cig) %>%
+  tidy() %>% # make model a tidy object 
+  filter(term == "Residuals") %>% # select residuals sum of squares 
+  pull(sumsq) # get the value to save down 
+
+y_and_cpd <- aov(nnal ~ cpd + age, data = cig) %>%
+  tidy() %>% # make model a tidy object 
+  filter(term == "cpd") %>% # select residuals sum of squares 
+  pull(sumsq) # get the value to save down 
+
+y_and_age <- aov(nnal ~ cpd + age, data = cig) %>%
+  tidy() %>% # make model a tidy object 
+  filter(term == "age") %>% # select residuals sum of squares 
+  pull(sumsq) # get the value to save down 
+
+  Y_cpd_alone <- 
+    nnal_total - # total variance Y 
+    (
+      y_alone + #residuals of Y 
+        
+        aov(nnal ~ age , data = cig) %>%
+        tidy() %>% # make model a tidy object 
+        filter(term == "age") %>% # select residuals sum of squares 
+        pull(sumsq) # get the value to save down 
+    )
+  
+  
+# intermediate summary: not complete 
+  
+plot(
+  euler(
+    c("Y" = y_alone,
+       "Y&CPD" = y_and_cpd,
+       "Y&AGE" = y_and_age)
+    ),
+     quantities = T
+     )
+
+
+
+#     from the intuitive point of view, this makes not much sense 
+#     we do not care for now the values of nnal can be predictive of cpd
+#     at least not in this problem, but surely from a statistical point of view this has its application 
+#     
+#     from the venn diagram/mathematial point of view this is a very powerful tool
+#     in a 2 variable case, Y ~ X, resials from the regression mode is variation of Y that X does not explain 
+#     therefore X ~ Y tells us what is the variance of X that Y does not explain. 
+#     We are not so much interested in what that quantity is, but we just wish to remove it, 
+#     and this is a very useful way to substract that 
+
+```
+
+
+
+```{r}
+
+sd(cig$nnal)^2 * (nrow(cig) - 1)
+
+ssr <-  aov(nnal ~ cpd, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "cpd") %>% 
+              pull(sumsq)
+
+sse <-  aov(nnal ~ cpd, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "Residuals") %>% 
+              pull(sumsq)
+
+print(paste("Fitting Model y ~ cpd. SSE: ", round(sse, 2), 
+            ". SSR Of CPD", round(ssr, 2))
+      )
+
+###############################
+
+ssr <-  aov(nnal ~ age, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "age") %>% 
+              pull(sumsq)
+sse <-  aov(nnal ~ age, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "Residuals") %>% 
+              pull(sumsq)
+
+print(paste("Fitting Model y ~ age. SSE: ", round(sse, 2), 
+            ". SSR Of CPD", round(ssr, 2))
+      )
+
+###############################
+
+sse <-  aov(nnal ~ age + cpd, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "Residuals") %>% 
+              pull(sumsq)
+
+ssr1 <-  aov(nnal ~ age + cpd, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "age") %>% 
+              pull(sumsq)
+
+ssr2 <-  aov(nnal ~ age + cpd, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "cpd") %>% 
+              pull(sumsq)
+
+print(paste("Fitting Model y ~ age + cpd. SSE: ", round(sse, 2), 
+            ". SSR Of CPD", round(ssr2, 2),
+            ". SSR Of AGE", round(ssr1, 2))
+      )
+
+##################################
+ssr1 <-  aov(nnal ~ cpd + age, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "age") %>% 
+              pull(sumsq)
+
+ssr2 <-  aov(nnal ~ cpd + age, data = cig) %>% 
+              tidy() %>% 
+              filter(term == "cpd") %>% 
+              pull(sumsq)
+
+print(paste("Fitting Model y ~ cpd + age. SSE: ", round(sse, 2), 
+            ". SSR Of CPD", round(ssr2, 2),
+            ". SSR Of AGE", round(ssr1, 2))
+      )
+##################################
+
+r_cpd <- summary(lm(nnal ~ cpd, data = cig))$r.squared
+r_age <- summary(lm(nnal ~ age, data = cig))$r.squared
+r_both <- summary(lm(nnal ~ age + cpd, data = cig))$r.squared
+
+print(paste("R squared from cpd only: ", round(r_cpd, 5),
+            "R squared from age only: ", round(r_age, 5),
+            "R squared from age and cpd: ", round(r_both, 5)
+            ))
+
+```
+
+
+
+<!--
+
+alright so as soon as I started working on this, I ran into a problem immediately
+SSR of cpd increases when we add predictors, which is not something I expected. So, perhaps, 
+we can twist this problem. 
+
+instead of visually representing the area, we can perhaps make a table that shows SSR alone and 
+with other variables present 
+
+The order of adding variables matters. If variable is included first, then SSR will be the same as a 
+linear regression with just that one variable 
+
+If variable is included after some variables, then SSR will not neccessarily be the same as a one-variable 
+linear regression 
+
+In this example, SSR of variable that is second in the mode > SSR of that variable from a one-variable model 
+
+--> 
+
+
+
+

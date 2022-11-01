@@ -1,0 +1,654 @@
+---
+title: "Homework 7"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+# 14.2
+
+```{r, include= F}
+infant <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Infants.xls")
+
+original_names <- colnames(infant)
+
+colnames(infant) <- c("head_c", "length", "gest_weeks", "birthwght", "mom_age", "toxemia")
+
+```
+
+### 14.2 - A 
+
+First, we evaluate the distribution of birth weight measurements of infants. We will need to evaluate residuals and 
+overall model fit, which are impacted by the shape of the response variable sample and outliers. 
+
+```{r }
+
+ggplot(data = infant, 
+       aes(x = birthwght)) + 
+  geom_histogram(binwidth = 100, color = "black", fill = "light yellow") + 
+  
+  geom_vline(aes(colour = "Average Birth Weight", xintercept = mean(birthwght)), size = 1) + 
+  geom_vline(aes(colour = "Median Birth Weight", xintercept = median(birthwght)), size = 1) + 
+  scale_color_manual(values = c("Average Birth Weight" = "blue", "Median Birth Weight" = "red")) + 
+  
+  xlab("Birth Wegith") + 
+  ylab("Count") + 
+  ggtitle(paste("Disbtribution of Birth Weight of Infants", 
+                "\n Average: ", round(mean(infant$birthwght), 2), 
+                "\n Median: ", round(median(infant$birthwght), 2)))  + 
+  
+  theme(legend.position = "bottom") + 
+  guides(color = guide_legend(nrow=2, byrow=TRUE)) + 
+  theme_minimal()
+
+```
+
+Histogram suggests that there are potential outliers, with a few infants having very high birth weights. 
+
+We now refer to the box plot to see if those few observations are in fact outliers, or just appear as
+visually extreme observations. 
+
+```{r fig.width=5}
+
+ggplot(data = infant, 
+       aes(y = birthwght)) + 
+  geom_boxplot(color = "black", fill = "light yellow") + 
+  
+  xlab("") + 
+  ylab("Birth Wegith") + 
+  ggtitle(paste("Disbtribution of Birth Weight of Infants", 
+                "\n Average: ", round(mean(infant$birthwght), 2), 
+                "\n Median: ", round(median(infant$birthwght), 2)))  + 
+  
+  theme(legend.position = "bottom") + 
+  guides(color = guide_legend(nrow=2, byrow=TRUE)) + 
+  theme_minimal()
+
+```
+
+The box plot suggests that the most extreme observation is in fact an outlier, hopefully 
+it will not affect the model fit and estimates. 
+
+**Model**
+
+We now fit a regression model, regression model is below: 
+
+$$\Large E[Birth \ Weight_{i}] = \hat \beta_0 + \hat \beta_{1} * Gestational \ Weeks + \hat \beta_{2} * Mother's Age + \hat \beta_{3} * Toxemia \ Flag$$
+
+**Overall ANOVA** 
+
+Before investigating individual coefficients and t-test for predictors, we want to look at the overall ANOVA table, and overall 
+F-test. We want to see if the set of all predictors is helpful at explaining the variance of infants' birth weights and therefore
+we will know if some of all coefficients are statistically different from 0. 
+
+ANOVA table for the F-test is given below: 
+
+```{r}
+
+infant_m <- infant %>% select(birthwght, gest_weeks, mom_age, toxemia)
+
+full <- lm(birthwght ~ gest_weeks + mom_age + toxemia, data = infant_m)
+
+SSR <- sum(
+  (full$fitted.values - mean(infant_m$birthwght))^2
+)
+
+SSE <- sum(full$residuals^2)
+SSTO <- sum((mean(infant_m$birthwght) - infant_m$birthwght)^2 )
+  
+df_ssr <- length(infant_m) - 1
+df_sse <- nrow(infant_m) - length(infant_m)
+
+res <- 
+  data.frame(
+    Source = c("Regression", "Error", "Total"), 
+    SSR = c(SSR, SSE, SSTO), 
+    DF = c(df_ssr, df_sse, nrow(infant_m)-1)
+  )
+
+res$MS <- NA
+res[1:2,]$MS <- res[1:2,]$SSR / res[1:2,]$DF
+
+res$`F Statistic` <- NA
+res[1,]$`F Statistic` <- round((SSR/df_ssr) / (SSE/df_sse),2)
+
+res$`P(F* > F)` <- NA
+res[1,]$`P(F* > F)` <- round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)
+  
+res %>% 
+  kbl(booktabs = T, align = 'c') %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+
+```
+
+
+* Null Hypothesis: $H_0: \beta_1 = \beta_2 = ... = \beta_{p-1}$
+
+* Alternative Hypothesis: $H_a:$ Not all coefficients $\beta_i$ are zero
+
+* $F-$statistic: `r round((SSR/df_ssr) / (SSE/df_sse),2)`
+
+* Cutoff $F^*$-statistic: `r round(qf(1-.05, df1 = df_ssr, df2 = df_sse),4)`
+
+* So, $F >F^*$, therefore we have enough evidence to reject the null hypothesis and conclude that some or all 
+  coefficients $\beta_i$ are consistently different from zero. 
+
+* Moreover, $P(F^* < F) =$ `r round(1 - pf((SSR/df_ssr) / (SSE/df_sse), df1 = df_ssr, df2 = df_sse),4)`, so the results are very convincing here, we should see some very strong predictors 
+in the model, especially considering that this set of predictors is able to explain 
+`r round(summary(full)$r.squared,4)*100`% of variance in birth weights 
+  
+**Regression Coefficients** 
+
+Coefficients for predictors, estimate standard errors and t-tests are given in the table below. 
+
+```{r}
+res_reg <- data.frame(summary(full)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+It appears that the number of gestational weeks and toxemia flag are extremely strong predictors 
+that we need to retain. 
+
+* An additional week of gestation adds an average of `r round(res_reg[res_reg$Predictor == "gest_weeks", ]$Estiamte, 2)` pounds to infant's birth weight, after adjusting for other variables.
+
+* Presence of toxemia on average reduces the birth weight by  `r abs(round(res_reg[res_reg$Predictor == "toxemia", ]$Estiamte, 2))` pounds, after adjusting for other variables.
+
+* Mom's age is not a string predictor with a coefficient close to 0, relative to the scale of 
+  outcome measurement and other coefficients' values. Therefore, we can remove this predictor in 
+  an applied research setting, unless we have a strong desire to keep it in the model. 
+
+### 14.2 - B 
+
+We use an added variable plot in order to evaluate the nature of the relationship between birth weights and the number of gestational weeks after adjusting
+for the other 2 predictors. We will need to obtain two sets of residuals from 
+the two models: 
+
+* Model 1: obtains residuals for $Y =$ birth weight. We denote these residuals as $\epsilon_Y = e(Y|X_2, X_3)$: 
+
+    + $\Large Y = \hat \beta_0 + \hat \beta_2 * Mom's  \ Age  + \hat \beta_3 *Toxemia \ Flag + \epsilon_{Y}$
+    
+* Model 2: obtains residuals for $X_1 = $ N of Gestational Weeks. We denote these residuals as $\epsilon_X = e(X_1|X_2, X_3)$: 
+
+    + $\Large X_2 = \hat \beta_0 + \hat \beta_2 * Mom's  \ Age  + \hat \beta_3 *Toxemia \ Flag + \epsilon_{x}$
+    
+Plot below shows the relationship between the two sets of residuals: 
+
+**X1 Added Variable Plot**
+
+```{r, echo  = T}
+y_reg <- lm(birthwght ~  mom_age + toxemia, data = infant_m)
+x_reg <- lm(gest_weeks ~ mom_age + toxemia, data = infant_m)
+
+d <- 
+  data.frame(
+    y_res = y_reg$residuals,
+    x_res = x_reg$residuals
+  )
+```
+
+```{r}
+  ggplot(data = d, 
+         aes(x = x_res, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = T, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    xlab("e(X_1 | X_2, X_3)") + 
+    ylab("e(Y | X_2, X_3)") + 
+    
+    theme_minimal() + 
+    
+    labs(color = "Line Type") + 
+    ggtitle("Added Variable Plot for the Number of Gestational Weeks")
+  
+```
+
+1. The relationship between $X_1$ and $Y$, after accounting for other predictors, is linear in its nature. We can see that the 
+    smooth trend line fluctuates randomly around the fitted regression line, suggesting that there is no consistent curved,
+    or other non-linear relationship between the number of gestational weeks and birth weight. 
+    
+2. The fitted regression line that confirm linear relationship has a positive, upward facing, slope, suggesting that the number 
+    of gestational weeks can be used a potentially useful predictor that help increase the percentage of variation in birth weight that this model explains. 
+    
+3. One potentially troublesome conclusion is the issue with variance assumption. We can see that 
+  as values increase along the $x-$axis, so does the spread of data points around the average 
+  fitted line. We will investigate more in the later section. 
+
+**X2 Added Variable Plot**
+
+We use the same procedure as described previously. We will skip the explanation and obtain the 
+plot. 
+
+```{r, echo = T}
+y_reg <- lm(birthwght ~  gest_weeks + toxemia, data = infant_m)
+x_reg <- lm(mom_age ~  gest_weeks + toxemia, data = infant_m)
+
+d <- 
+  data.frame(
+    y_res = y_reg$residuals,
+    x_res = x_reg$residuals
+  )
+```
+
+```{r}
+  ggplot(data = d, 
+         aes(x = x_res, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = T, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    
+    labs(color = "Line Type") + 
+    ggtitle("Added Variable Plot for the Number of Hours Worked")
+  
+```
+
+1. The relationship between $X_2$ and $Y$, after accounting for other predictors, is linear in its nature. We can see that the 
+    smooth trend line fluctuates randomly around the fitted regression line, suggesting that there is no consistent curved,
+    or other non-linear relationship between mom's age and birth weight. 
+    
+2. This plot supports the statement that mom's age is not a useful predictors of birth weight 
+  in the context of this model. We can see that there are definitely some outliers, where 
+  babies are way heavier than what is predicted by the model. These outliers are perhaps due to 
+  other factors such as mom's height or other size measurements. 
+    
+3. This plot highlights less issues with the constant variance assumption, which we should not 
+    pay much attention to, since this variable should be removed from the model 
+    
+### 14.2 - C
+
+We obtain Variable Inflation Factors(VIFs) by creating three regression models. 
+We follow these steps for each regression model: 
+
+1. Use predictor $i$ as a response variable 
+2. Use all other predictors, except for $i$, as predictors of variable $i$ 
+3. Obtain $R^2$ from the model, high value implies some predictors from the independent set are 
+  related to predictor $i$ 
+4. Obtain VIF = $\large (1- R^2)^{-1}$
+
+First, let's investigate the correlation matrix between all three predictors. Note that *toxemia* 
+is a binary indicator, so this correlation coefficient is not meaningful for interpretation, 
+but we can still use it to see the degree of 'correlation' between toxemia and the other two 
+predictors 
+
+```{r}
+
+infant_cor <- infant %>% select(gest_weeks, mom_age, toxemia)
+
+cor_m <- data.frame(cor(infant_cor))
+
+rownames(cor_m) <-  c("Gestational Weeks", "Mom's Age", "Toxemia")
+colnames(cor_m) <-  c("Gestational Weeks", "Mom's Age", "Toxemia")
+
+cor_m %>% 
+  kbl(booktabs = T)
+```
+
+It appears that Toxemia and Gestational Weeks count are moderately correlated, so we should expect 
+their VIF values to be above 1. Mom's age is weakly correlated with the other two predictors, which
+would be favorable if Mom's age was an actually useful predictor. 
+
+```{r, echo = T}
+
+r_sq_gest_weeks <- summary(lm(gest_weeks ~ mom_age  + toxemia, data = infant))$r.squared
+r_sq_mom_age <- summary(lm(mom_age ~ gest_weeks  + toxemia, data = infant))$r.squared
+r_sq_toxemia <- summary(lm(toxemia ~ mom_age  +  gest_weeks, data = infant))$r.squared
+
+vif_d <- 
+  data.frame(
+    var = c("Gestational Weeks", "Mom's Age", "Toxemia"), 
+    r_sq = c(r_sq_gest_weeks, r_sq_mom_age, r_sq_toxemia), 
+    std_e = summary(full)$coefficients[2:4,2]
+  )
+
+rownames(vif_d) <- NULL
+
+vif_d$vif <- 1/(1-vif_d$r_sq)
+vif_d <- vif_d %>% select(-r_sq)
+vif_d %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c'), 
+      col.names = c("Variable", "Standard Error", "VIF")) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+* Overall, these values of VIF are not a cause for concern
+  + We would investigate a certain predictor is VIF value exceeded 5
+  + We would say we have strong evidence for a multicollinearity issue if a single VIF value here 
+    would be greater than 10 
+    
+* A VIF value of `r vif_d[1,3]` for `r vif_d[1,1]` means that the variance for this predictor 
+  was inflated by `r (vif_d[1,3] - 1)*100`% 
+  
+    + For coefficients $\large \hat \beta_i$ variance is given by $Var(\hat \beta_i) = se(\hat \beta_i)^2$
+    
+    + using variance property $Var(aX) = a^2 var(X)$, we know that the for the predictor 
+      $i$ standard error was inflated by a factor $\sqrt{VIF_i}$
+      
+    + for example, standard error for `r vif_d[1,1]` is `r vif_d[1,2]`, which was inflated by 
+      `r (sqrt(vif_d[1,3]) - 1)* 100`% due to correlation with other predictors
+    
+    + Overall, this should not be a cause for concern, from a practical point of view if we 
+       were to use this model for inference and recommendations 
+
+* Since the greatest VIF value is not a cause for concert, the other two values also follow the 
+  same conclusion. 
+  
+### 14.2 - D
+
+**Residuals**
+
+First, we plot residuals against the expected quadrilles under the normal distribution to 
+verify that the residuals are in fact normally distributed. 
+
+```{r}
+
+qqnorm(full$residuals)
+qqline(full$residuals)
+
+```
+
+Overall, it seems that for the most part there are no issues, residuals should be approximately normally distributed. 
+There are some heavier than expected tails present in the data. Overall, nothing that will be a severe issue. 
+
+We plot standardized residuals against fitted values and obtain a residual plot: 
+
+```{r}
+d <- 
+  data.frame(
+    y_res = rstandard(full),
+    fitted = full$fitted.values
+  )
+
+  ggplot(data = d, 
+         aes(x = fitted, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = T, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    
+    labs(color = "Line Type") + 
+    
+    xlab("Fitted Values") + 
+    ylab("Residuals") + 
+    ggtitle("Standardized residulas versus Fitted values ")
+  
+```
+
+We can see multiple issues with this plot: 
+
+* The variance of residuals in not constant across different values of fitted values. We have a megaphone shape. So, 
+  as the predicted values of birth weight increase, so does the variance of residuals, so the model does not perform well 
+  for babies with higher birth weights. 
+
+* There are some obvious positive outliers. 
+
+We can see that some assumptions also held: 
+
+* The average values of residuals is 0 
+
+* There is no linear trend in residuals against fitted values, so the two are not correlated. 
+
+```{r}
+d <- 
+  data.frame(
+    y_res = rstandard(full),
+    fitted = infant$gest_weeks
+  )
+
+  ggplot(data = d, 
+         aes(x = fitted, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = T, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    
+    xlab("Gestational Weeks") + 
+    ylab("Residuals") + 
+    
+    labs(color = "Line Type") + 
+    ggtitle("Standardized residuals versus the Number of Gestational Weeks ")
+  
+```
+
+The plot of residuals versus the number of gestational weeks follows the same conclusions as the plot of residuals versus 
+fitted values. In fact, the plots look extremely similar. The same two outliers are visible on the upper end of residuals. 
+Variance of residuals is even greater on for residuals whose values are below zero. 
+
+
+And lastly we present the residual plot of standardized residuals versus the mom's age 
+
+```{r}
+d <- 
+  data.frame(
+    y_res = rstandard(full),
+    fitted = infant$mom_age
+  )
+
+  ggplot(data = d, 
+         aes(x = fitted, 
+             y = y_res)) + 
+    
+    geom_point() + 
+    
+    geom_smooth(se = F, aes(color = "Smooth Trend Line")) + 
+    geom_smooth(method = "lm", se = T, aes(color = "Fitted Regression Line")) + 
+    scale_color_manual(values = c("Smooth Trend Line" = "blue", "Fitted Regression Line" = "red")) + 
+    
+    theme_minimal() + 
+    
+    xlab("Mom's Age") + 
+    ylab("Residuals") + 
+    
+    labs(color = "Line Type") + 
+    ggtitle("Standardized residuals versus Mom's Age")
+```
+This residual plot looks different from the previous two. 
+
+* First of all, the issue with non constant variance is not apparent from this plot, unlike the plot versus gestational weeks.
+  Given that mom's age is not a significant predictor, while gestational weeks is, makes me believe that gestational 
+  weeks is somehow the root cause of non-constant variance of residuals 
+  
+* The fitted line shows slight upward trend, however, the regression line confidence bound also includes a hypothetical line with 
+slope 0, so this trend is not a cause for concern 
+
+**Overall** 
+
+The residual plot shows that there is a non-constant variance problem with the model. We can address it using WLS regression 
+model. 
+
+There are a few outliers that we need to address. However, that should be done after we re-fit the WLS model.
+
+Other assumptions violations are not apparent. 
+
+\newpage 
+
+# 15.3 
+
+```{r}
+rad <- read_xls('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Radiation.xls')
+rad <- rad[,-19]
+
+rad <- rad %>% select(ACADEME, age_diag, income, everything())
+
+rad[,4:length(rad)] <- lapply(rad[,4:length(rad)], as.factor)
+```
+
+### 15.3 - A
+
+We look at the number of unique levels for categorical predictors to calculate the total number of covariates. 
+If a categorical variable has $p$ levels, then it can be represented using $p-1$ binary flag variables. 
+
+```{r}
+
+n_unique <- function(x){length(unique(x))}
+
+meta_data <- 
+  
+  data.frame(
+    class = sapply(rad %>% select(-ACADEME), class), 
+    n_unique = sapply(rad %>% select(-ACADEME), n_unique)
+  ) %>% 
+  
+  arrange(class, -n_unique)
+
+meta_data %>% 
+  kbl( booktabs = T) %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) 
+
+full_glm <- glm(ACADEME ~ ., data = rad, family = "binomial")
+
+  
+sum2 <- data.frame(summary(full_glm)$coefficients)
+
+np <- nrow(sum2) - 1
+```
+
+* For example, tumor category can be represented with `r length(unique(rad$tumor_cat)) - 1` variables 
+
+The total number of predictors in the logistic regression model will be `r np`
+
+### 15.3 - B
+
+All coefficients are given below, $*$ mark predictors that are significant at the 0.05 level
+
+```{r}
+full_glm <- glm(ACADEME ~ ., data = rad, family = "binomial")
+
+  
+sum2 <- data.frame(summary(full_glm)$coefficients)
+
+sum2$names <- rownames(sum2)
+rownames(sum2) <- NULL
+
+sum2 <- sum2 %>%  dplyr::select(names, everything())
+
+round_3 <- function(x){round(x,3)}
+sum2[,2:5] <- lapply(sum2[,2:5], round_3)
+
+colnames(sum2) <-c("Model Term", "Estimate", "Std. Error", "T-value", "P-value") 
+
+sum2 <- sum2 %>% filter(`Model Term` != "(Intercept)")
+
+sum2$Significance <- ifelse(sum2$`P-value` <= 0.05, "*", "")
+
+sum2 %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+Income is statistically significant, but the coefficient is very small
+
+Tumor category 2 and chemotherapy flag are also two statistically significant predictors.
+
+We have a lot of simultaneous t-test, and therefore a high chance of detecting a false positive result. 
+Use bonferroni adjustment to see what predictors are actually useful from a large set of predictors. 
+
+**Bonferroni**
+
+Significance level with the bonferroni adjustment is `r round(0.05/np, 8)`
+
+```{r}
+
+sum_bonf_adj <- sum2 %>% select(`Model Term`, `P-value`)
+sum_bonf_adj$`Significant at Adj. Level` = 
+  with(sum_bonf_adj, 
+       ifelse(`P-value` < 0.05 / np , "*", "")
+       )
+
+sum_bonf_adj %>% 
+  kbl( booktabs = T) %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(3, width = "2cm")
+
+```
+
+Chemotherapy flag is the only useful predictor, after adjusting for other variance, at the bonferroni adjusted level 
+
+**Hochberg**
+
+To verify the results, we also look at the Hochberg adjustments. 
+
+```{r}
+
+hoch_data <- 
+  sum2 %>% select(`Model Term`, `P-value`) %>% arrange(-`P-value`) %>% 
+  filter(`Model Term` != "Intercept")
+
+hoch_data$`Comparison P-value` <- 0.05
+hoch_data$`Significant at Adj. Level` <- ""
+
+cur_adj_n <- 1
+
+for(i in 1:nrow(hoch_data)){
+  
+  cur_level <- 0.05 / cur_adj_n
+  hoch_data[i,3] <- cur_level
+ 
+  if(hoch_data[i,2] > cur_level){
+    cur_adj_n <- cur_adj_n + 1
+    
+    hoch_data[i,3] <- cur_level
+  }
+}
+
+hoch_data[,4] <- ifelse(hoch_data[,2] < hoch_data[,3], "*", "")
+
+hoch_data[,2:3] <- lapply(hoch_data[,2:3], round_3)
+
+hoch_data %>% 
+  kbl( booktabs = T) %>% 
+    kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+    column_spec(c(3,4),  width = "2cm")
+
+```
+
+It again appears that chemotherapy status is the only important predictor 
+
