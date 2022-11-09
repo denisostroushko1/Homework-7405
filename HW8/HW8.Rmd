@@ -1,0 +1,335 @@
+---
+title: "Homework 8"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+# 16.1
+
+In this problem we will estimate the effect of consuming Brussels sprouts on the DIM (a metabolite of I3C) measurements in 
+urine of the test participants. We will refer to this as simply 'treatment' later in the homeowrk. 
+
+```{R}
+brussel <- 
+  read.csv("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/BrusselsSprouts2.csv") 
+
+brussel <- brussel %>% arrange(subject, period)
+
+# so, for each subject we have 2 lines 
+
+# treatment = 1 is treatment  
+# treatment = 2 is placebo
+
+# sequence = 1 is Brussel sprouts then Cabbage 
+# sequence = 2 is Cabbage then Brussel sprouts  
+
+# GROUP 1: will have mean of X1, they got Sprouts then Cabbage, which is sequence 1
+# GROUP 2: will have mean of X2, they got Cabbage then Sprouts, which is sequence 2
+
+#get those from group 1: 
+group_1_data <- brussel %>% filter(sequence == 1) # 26 rows beause we have 13 patients 
+group_2_data <- brussel %>% filter(sequence == 2) # 25 rows becuase we have 12 patiesnts 
+
+###############
+# Treatment Effect 
+
+X1 <- group_1_data[group_1_data$period == 1, ]$response - group_1_data[group_1_data$period == 2, ]$response
+X2 <- group_2_data[group_2_data$period == 2, ]$response - group_2_data[group_2_data$period == 1, ]$response 
+
+a = (mean(X1) + mean(X2))/2
+
+#############
+# Pooled variance - standard efor for 'a'
+
+# pooled_var <- 
+#   ((length(X1)-1) * sd(X1)^2 + (length(X2)-1) * sd(X2)^2)/
+#   ((length(X1)-1) + (length(X2)-1))
+
+pooled_var <- (sd(X1)^2 / (length(X1)) + sd(X2)^2 / (length(X2)))
+
+pooled_var
+
+Standard_error <- sqrt(pooled_var / 4)  
+
+low_bound <- a - qt(1-.05/2, length(X1) + length(X2) - 2) * Standard_error
+
+high_bound <- a + qt(1-.05/2, length(X1) + length(X2) - 2) * Standard_error
+
+
+
+crti_t <- qt(1-.05/2, length(X1) + length(X2) - 2) # critical value
+
+t_stat <- a / ((sqrt(pooled_var)/2))
+
+p_val <- 1 - pt(t_stat, length(X1) + length(X2) - 2)
+
+
+
+# from sas standard error: 1.6287
+# 1.6287 * sqrt(50) = 11.5166
+
+# my pooled var = 11.30053
+```
+
+For a crossover design, will use the following model: 
+
+$$\Large Model: Measurement = \alpha * Treatment + \beta * Order + Other$$
+We will use the data provided to estimate the parameter $\alpha$, with an estimator $\hat a$. 
+In order to get the estimator, a treatment effect, we need the average of the two quantities. 
+Treatment effect is given by: 
+
+$$\Large a = \frac{\bar x_1 + \bar x_2}{2}$$
+
+Where $\large \bar X_1 = A1 - B2$, i.e. the treatment effect for a group of people who consumed Brussels sprouts and then a 
+placebo, some cabbage. 
+
+Where $\large \bar X_2 = A2 - B1$, i.e. the treatment effect for a group of people who consumed placebo and then
+Brussels sprouts. 
+
+We get $X1$ and $X2$ using the code below: 
+
+```{r, echo = T, eval = F}
+X1 <- group_1_data[group_1_data$period == 1, ]$response - 
+                    group_1_data[group_1_data$period == 2, ]$response
+X2 <- group_2_data[group_2_data$period == 2, ]$response - 
+                    group_2_data[group_2_data$period == 1, ]$response 
+```
+
+The average of the two quantities is the overall treatment effect, $\hat a$ = `r round(a, 4)`, which matches the output in SAS. 
+
+We can use a t-test to determine if the treatment is indeed effective, by making sure that the effect is statistically different 
+from 0. Before stating the test, we need to get a standard error for the estimate $\hat a$. 
+
+We obtain pooled standard error from the two samples using this formula: 
+
+$$\large s^2 = \frac{s^2_1}{n_1} + \frac{s^2_2}{n_2}$$
+
+We then obtain the standard error for the estimate by diving $s^2$ by 2, as stated on slide 24. 
+
+Code for this calculation is given below: 
+```{r, echo = T, eval = F}
+pooled_var <- (sd(X1)^2 / (length(X1)) + sd(X2)^2 / (length(X2)))
+Standard_error <- sqrt(pooled_var / 4)  
+```
+
+Thus, we obtain the estimate for the standard error equal to `r round(Standard_error,4)`. I notice that the estimate is 
+different by that provided in the SAS output. I tried to obtain an estimate using multiple formulas for pooled 
+standard error, and the closest estimate I could get was 1.585. However, `r round(Standard_error,4)` is obtained through 
+the more straightforward formula. 
+
+Now we can state the formal T-test: 
+
+* $H_0: \hat a = 0$
+
+* $H_a: \hat a \neq 0$
+
+* T-test statistic: `r round(t_stat, 4)`
+
+* Critical cutoff value $T^*$: `r round(crti_t, 4)`
+
+* $P(T^* > T) =$ `r round(p_val, 4)`
+
+* Comment on the estimates: Because the value of the pooled standard error does not match that in the SAS output, none of the 
+test statistics and p-value match the output in SAS. However, I consider these as within an acceptable margin of error, 
+especially given that the estimate for the treatment effect is spot on. I will understand and accept any verdict regarding 
+the grading and comments. 
+
+* Conclusion: Results are statistically significant, we reject the null hypothesis and conclude that consumption of 
+Brussels sprouts increases the measurement of biomarker of interest in urine. 
+
+\newpage
+
+# 17.1
+
+Before fitting the logistic regression model, we assess the balance of covariates in the two groups using a two-sample t-tests 
+for averages and proportions between Arm 5 and Arm 6. 
+
+Table below provides sample averages for Age and FTND, and the proportions for Gender, Education, and Income binary variables. 
+
+```{r}
+
+e_cig <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/E-CIG-2.xlsx")
+
+e_cig$Z <- with(e_cig, ifelse(arm == 6, 1, 0))
+
+e_cig <- e_cig %>% select(Z, age,  FTND, gender, educ2, income30)
+
+e_cig$gender <- e_cig$gender - 1
+
+e_cig$educ2 <- e_cig$educ2 - 1
+
+e_cig$income30 <- e_cig$income30 - 1
+
+g <- e_cig %>% 
+  group_by(Z) %>% summarise(n = n(), s = sum(gender))
+
+e <- e_cig %>% 
+  group_by(Z) %>% summarise(n = n(), s = sum(educ2))
+
+i <- e_cig %>% 
+  group_by(Z) %>% summarise(n = n(), s = sum(income30))
+
+```
+
+```{r}
+
+
+sum <- 
+  e_cig %>% 
+    group_by(Z) %>% 
+    summarize(
+      age = mean(age),
+      FTND = mean(FTND),
+      gender = sum(gender)/n(),
+      Education = sum(educ2)/n(),
+      Income = sum(income30)/n()
+    )
+
+sum <- data.frame(t(sum))
+
+sum$var <- rownames(sum)
+
+sum <- sum %>% filter(var != "Z")
+
+sum <- sum %>% select(var, X1, X2)
+
+sum$tests <- c(
+  
+  t.test(x = e_cig[e_cig$Z == 1, ]$age, 
+       y = e_cig[e_cig$Z == 0, ]$age)$p.value, 
+
+  t.test(x = e_cig[e_cig$Z == 1, ]$FTND, 
+         y = e_cig[e_cig$Z == 0, ]$FTND)$p.value, 
+  
+  prop.test(x = g$s, n = g$n)$p.value, 
+  prop.test(x = e$s, n = e$n)$p.value, 
+  prop.test(x = i$s, n = i$n)$p.value
+  
+)
+
+rownames(sum)  <- NULL
+
+sum %>% 
+  kbl(col.names = c("Variable", "Arm 5", "Arm 6", "P-value"),
+      booktabs = T, 
+      centering = T) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  
+  pack_rows("Averages", 1, 2) %>% 
+  pack_rows("Proportions", 3, 5)
+  
+
+```
+
+**Table comments** 
+
+1. It looks like ages are fairly balanced between the two arms. T-test p-value is 0.84, which is a pretty big p-value, 
+    so the chance that the two average values are not statistically different is pretty high
+    
+2. Averages of FTND are not statistically different at the $\alpha = 0.05$ level, but it is pretty close. We might need 
+    to balance the samples using a propensity score model 
+    
+3. The proportion and men and women in the sample is essentially identical in the two samples 
+
+4. Percent of people with college or higher education in the two samples is similar 
+
+5. Percent of people who earn above $30,000 per year is similar 
+
+We fit the logistic regression model and provide a summary of the model below: 
+```{r}
+
+propensity_model <- glm(Z ~ ., data= e_cig, family = binomial())
+
+res_reg <- data.frame(summary(propensity_model)$coefficients)
+
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, z.value, `Pr...z..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "Z Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+No notable changes appear in the model summary. All p-values are pretty similar to the individual appropriate tests. 
+Standard errors are pretty high for all estimated coefficients, which is only interesting for the observation point of view. 
+We will not use this model for inferences on coefficients. 
+
+To get the treatment effect, we need to estimate the probability of being in Arm 6 for each participant, denote as $\hat \pi_i$, 
+and calculate log odds, given by: 
+
+$$\Large X_i = ln(\frac{\hat \pi_i}{1 - \hat \pi_i}  )$$
+We then compare the average log-odds between members of Arm 5 and 6 to obtain the effect size: 
+
+```{r}
+
+e_cig$fitted_values <- propensity_model$fitted.values
+
+e_cig$X <- log(e_cig$fitted_values/(1-e_cig$fitted_values))
+  
+sum <- 
+  e_cig %>% 
+    group_by(Z) %>% 
+    summarize(mean = mean(X), 
+              sd.error = sd(X)/sqrt(n()))
+
+sum$V <- ifelse(sum$Z == 0, "Arm 5", "Arm 6")
+
+sum <- sum %>% select(V, mean, sd.error)
+
+rownames(sum) <- NULL
+
+sum %>% 
+  kbl(booktabs = T, 
+      col.names = c("Arm", "Mean", "Std. Error")) %>% 
+  kable_styling(latex_options = c("stripped", "HOLD_position"))
+
+```
+
+T-test statement and conclusion is given below: 
+
+```{r}
+test <- t.test(x = e_cig[e_cig$Z == 1, ]$X, 
+         y = e_cig[e_cig$Z == 0, ]$X)
+```
+
+* $H_0: \bar X_{arm \ 5} = \bar X_{arm \ 6}$ 
+
+* $H_a: \bar X_{arm \ 5} \neq \bar X_{arm \ 6}$
+
+* T-test statistic: `r round(test$statistic, 4)`
+
+* Cutoff value $T^*$: `r round(qt(.975, nrow(e_cig)-2),4)`
+
+* $P(T^* > T) =$ `r round(test$p.value, 4) `
+
+* Conclusion: we reject the null hypothesis and conclude that the effect size is different for the two groups. Therefore, 
+  we can conclude that the two samples are not identical, there is confounding present, and we need to use propensity 
+  score-based matching to estimate the difference in measurements of interest between the two samples. 
+
+

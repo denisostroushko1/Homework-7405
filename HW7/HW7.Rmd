@@ -610,7 +610,7 @@ sum_bonf_adj %>%
 
 ```
 
-Chemotherapy flag is the only useful predictor, after adjusting for other variance, at the bonferroni adjusted level 
+Chemotherapy flag is the only useful predictor, after adjusting for other variables, at the bonferroni adjusted level 
 
 **Hochberg**
 
