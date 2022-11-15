@@ -1,0 +1,376 @@
+---
+title: "Homework 9"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+
+# 18.2 
+ 
+```{r}
+psa <- read_xls("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/PSAdata.xls")
+psa$d_bin <- ifelse(psa$disease == "yes", 1, 0)
+```
+
+In this problem we will make use a loop to make 100 logistic regression models that all use response variable derived from a 
+PSA measurement variable. I describe the process of finding an optimal cutoff in the bullet points below
+
+Before starting the loop: 
+
+1. Sort available values of PSA from lower to largest 
+2. index $i$ denotes the $i^{th}$ largest values of PSA from a list of available values 
+
+Loop outline: 
+
+1. Select $i^{th}$ value of PSA from a sorted list 
+2. classify patients with the PSA values above selected cutoff as screen "positive", likely 
+    to be diagnosed, and "negative" otherwise 
+3. Fit a logistic regression : 
+
+$$\large ln \Big [\frac{P(Screen Positive = 1)}{1 - P(Screen Positive = 1)} \Big ]= \hat \beta_0 + \hat \beta_1 * Cancer \ Positive \ Flag + \hat \beta_2 * Age + \hat \beta_3 * Age * Cancer \ Positive \ Flag $$
+
+4. Record Odds Ratio for a person who is 65 years old, using this formula: 
+
+$$\Large OR_i = e^{\hat \beta_1 + \hat \beta_3 * 65}$$
+
+5. Save the value and return to step 1. 
+
+
+Code below implements such loop: 
+
+```{R, echo = T}
+
+sorted_psa <- sort(psa$psa)
+X <- 65 
+
+results <- 
+  data.frame(
+    index = seq(from = 1, to = length(sorted_psa), by = 1),
+    psa_used = sorted_psa, 
+    OR = NA, 
+    disease_b2 = NA, 
+    age_b3 = NA, 
+    interaction_b4 = NA, 
+    accuracy = NA, 
+    Sens = NA, 
+    PPV = NA
+  )
+
+for(i in 1:(length(sorted_psa) - 1)){
+  
+  cutoff <- sorted_psa[i]
+  
+  psa_loop <- psa
+  psa_loop$cutoff_binary <- as.factor(ifelse(psa_loop$psa > cutoff, 1, 0))
+  
+  # i = 5 is a bad fit 
+  # i = 25 is a good fit 
+  loop_glm <- glm(cutoff_binary ~ disease + age + disease:age, 
+                  data = psa_loop, 
+                  family = binomial())
+  
+  
+  results$OR[i] <- exp(coefficients(loop_glm)[2] + 
+                         coefficients(loop_glm)[4] * X)
+  
+  results$disease_b2[i] <- coefficients(loop_glm)[2]
+  results$age_b3[i] <- coefficients(loop_glm)[3]
+  results$interaction_b4[i] <- coefficients(loop_glm)[4]
+  
+  cm <- confusionMatrix(
+            data = as.factor(psa_loop$disease), 
+            reference = as.factor(ifelse(psa_loop$psa > cutoff, "yes", "no"))
+          )
+  
+  results$PPV[i] <- cm$byClass["Pos Pred Value"]
+  results$Sens[i] <- cm$byClass["Sensitivity"]
+  results$accuracy[i] <- cm$byClass["Balanced Accuracy"]
+
+}
+
+results <- na.omit(results)
+```
+
+To find the value of PSA that maximizes OR for a patient of interest we simply select a value of PSA where OR is maximum from a 
+data set that stores our results. 
+
+**The value of PSA that maximizes OR is `r results[results$OR == max(results$OR), ]$psa_used`**. So, for a person who 
+is 65 years old, we would use values of PSA greater than `r results[results$OR == max(results$OR), ]$psa_used` as an 
+indicator that such patient is likely to have cancer. 
+
+However, we also obtained some quite curious results. 
+The value of OR we are looking for is `r max(results$OR)`, which is just a huge value. 
+
+For comparison, here is a plot of all OR values plotted against the values of PSA that we used to create a binary outcome for   
+each iteration. As you can see, some cutoffs produce reasonable values of OR, within 0-10 range, and some are in the millions. 
+
+```{r}
+
+ggplot(data = results, 
+       aes(x = psa_used, 
+           y = OR)) + geom_point() + geom_line() + 
+  theme_minimal() + 
+  
+  ggtitle("All Recorded Odds Ratio Values from the Experiment") + 
+  xlab("Cutoff PSA value ") + 
+  ylab("Corresponding OR") 
+
+```
+
+But how did that happen? In order to investigate these reults, we look into the coefficients of each logistic regresison model 
+used. 
+
+We plot coefficients $\hat \beta_1$ and $\hat \beta_3$ against psa cutoff used. 
+
+```{r}
+
+ggplot(data = results, 
+       aes(x = disease_b2, 
+           y = OR)) + geom_point() + geom_line() + 
+  theme_minimal()+ 
+  
+  ggtitle("Plot of OR as a function of Disease Indicator Coefficient") + 
+  xlab("Beta 2 ") + 
+  ylab("Corresponding OR")  
+
+
+ggplot(data = results, 
+       aes(x = interaction_b4, 
+           y = OR)) + geom_point() + geom_line() + 
+  theme_minimal()+ 
+  
+  ggtitle("Plot of OR as a function of Interaction Term Coefficient") + 
+  xlab("Beta 4 ") + 
+  ylab("Corresponding OR")
+
+```
+
+So, it appears that some iterations produce models that have a huge coefficient for a disease indicator, which when exponentiated
+procudes a huge OR value. 
+
+
+
+
+# 19.1 
+
+```{r}
+emerg <- read_xlsx('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/EmergencyService.xlsx')
+colnames(emerg) <- c("n_visits", "complaint", "residency", "gender", "revenue", "hours", "response", "eight", "res9", 'hours10')
+
+emerg$residency_flag <- ifelse(emerg$residency == "Y", 1, 0)
+emerg$gender_flag <- ifelse(emerg$gender == "F", 1, 0)
+
+```
+
+### 19.1 - A
+
+In this section I fit and evaluate two models. One is a strict poisson model with the assumption that mean is equal to variance, 
+and one with a more relaxed assumption that allows for overdispersion of the response variable - the number of complaints. 
+
+
+```{r}
+
+p_glm <- glm(complaint ~ residency_flag + gender_flag + 
+               revenue + hours, data = emerg, family = poisson(link = "log"), offset = log(emerg$n_visits))
+
+res_reg <- data.frame(summary(p_glm)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, z.value, `Pr...z..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "Z Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c'), 
+      caption = "Model without Overdispersion Parameter") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+res_reg2 <- res_reg
+
+p1 <- round(res_reg2[res_reg2$Predictor == "hours", ]$`P value`,4)
+
+p_glm2 <- glm(complaint ~ residency_flag + gender_flag +
+                revenue + hours, data = emerg, family = quasipoisson, offset = log(emerg$n_visits))
+
+res_reg <- data.frame(summary(p_glm2)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c'), 
+      caption = "Model with Overdispersion Parameter") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+p2 <- round(res_reg[res_reg$Predictor == "hours", ]$`P value`,4)
+
+```
+
+Overdispersion parameter for the quasi-poisson model is  We can see that the model with an overdispersion parameter has the
+same estimates, but the standard errors are higher for the estimates. That means that without this parameter we would underestimate 
+the variance of estimates, and potentially accept some predictors as statistically significantly related to the number of complaints,
+while that might not be true. For example, revenue's P-value increases from `r round(p1,4)`  to `r p2` , which makes it look 
+less important as a predictor of the number of complaints. 
+
+### 19.1 - B
+
+```{r}
+sqrt_nerm <- lm(sqrt(complaint) ~ residency_flag + gender_flag + 
+               revenue + hours, data = emerg)
+
+res_reg <- data.frame(summary(sqrt_nerm)$coefficients)
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+res_reg <-
+  res_reg %>% mutate_at(vars(Estimate, `Std..Error`, t.value, `Pr...t..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Standard Error", "T Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c'), 
+      caption = "Model with Overdispersion Parameter") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+Standard errors and estimates are similar to poisson and quasipoisson models for the most part. The only difference is the residency flag 
+variable, however, due to to high standard errors for these estimates we should not address this variability. 
+
+Interpreting Effects: 
+
+```{r}
+est <- round(res_reg[res_reg$Predictor == "hours", ]$Estiamte,6)
+exp_est <- exp(est) - 1
+
+exp_est_pretty <- paste0(round(exp_est * 100, 4), "%")
+
+exp_est_lb <- paste0(round(exp_est * 100, 4), "%")
+exp_est_ub <- paste0(round(exp_est * 100, 4), "%")
+
+```
+
+1. Hours has the only statistically significant effect between the three models. I will use quasipoisson model to interpret the results 
+because this model should estimate the standard error of the estimate with the most accuracy. 
+
+Each additional hour worked increases the the relative risk of getting a complaint by `r exp_est_pretty`, bounded by `r paste(paste0(round((exp(confint(p_glm)[5,]) - 1) * 100,4), "%"), collapse = ", ")`. 
+
+
+
+### 19.1 - C
+
+**Observations on Estimates** 
+
+* Overall, the only coefficient that changes notably is the residency flag, indicating the effect of enrollment in the 
+  residency program on the number of complaints. 
+  
+  However, that coefficient is not statistically significant in any of the models, so it does not affect our model so much. 
+  
+* What is more impressive is that the standard errors for each estimate is very similar between the three models, which gives mroe 
+  credibility to our results. 
+
+**Residuals and Predictions** 
+
+To compare the two methods we also compare the fitted values and residuals. 
+
+* Residual Plot for Quasipoisson model
+
+We specified the number of visits as the "offset" parameter, so out response variable is the compalint rate, number of complaints 
+over the number of visits. 
+
+As we can see, studentized residuals fluctuate within two standard deviations from the mean zero line. As with any count data, 
+we have the case where residuals on the lower end usually do not cross a bound, identified by the dashed green line. 
+However, there is one outlier. We have `r length(which(predict(p_glm2, emerg) < 0))` cases where fitted values are lower than 0. 
+Fitted values are `r paste(round(predict(p_glm2, emerg)[predict(p_glm2, emerg) < 0],4),  collapse = ",")` .
+Observed complaint rates for these cases are `r paste(round((emerg$complaint/emerg$n_visits)[which(predict(p_glm2, emerg) < 0)], 6), collapse = ",")`. 
+
+For reference, this is the distribution of complaint rates in the data: 
+```{r}
+summary(emerg$complaint/emerg$n_visits)
+```
+
+I am not sure what the implications are for the practical purposes. 
+
+```{r}
+
+ggplot(data = 
+         data.frame(
+           x = predict(p_glm2, emerg) , 
+           y = rstandard(p_glm2)
+         ), 
+       aes(x = x, y = y)) + geom_point() + 
+  geom_smooth(se = F, color = "blue") + 
+  geom_smooth(se = T, color = "red", method = "lm") + 
+  theme_minimal() + 
+  
+  xlab("Fitted Values") + 
+  ylab("Residuals") + 
+  
+  ggtitle("Studentized Residual Plot versus Fitted Values \n for Quasipoisson Regression Model") + 
+  
+  scale_y_continuous(breaks = seq(from = -2, to = 2, by = 1)) + 
+  
+  geom_segment(x = -0.25 , 
+           xend = 1.5, 
+           y = 0 , 
+           yend = -1.6, color = "darkgreen", linetype = "dashed")
+
+```
+
+* Residual Plot for NERM
+
+```{r}
+ggplot(data = 
+         data.frame(
+           x = sqrt_nerm$fitted.values , 
+           y = rstandard(sqrt_nerm)
+         ), 
+       aes(x = x, y = y)) + geom_point() + 
+  geom_smooth(se = F, color = "blue") + 
+  geom_smooth(se = T, color = "red", method = "lm") + 
+  theme_minimal() + 
+  
+  xlab("Fitted Values") + 
+  ylab("Residuals") + 
+  
+  ggtitle("Studentized Residual Plot versus Fitted Values \n for NERM") + 
+  
+  geom_segment(x = .5 , 
+           xend = 2, 
+           y = .5 , 
+           yend = -2, color = "darkgreen", linetype = "dashed")
+
+```
+
+Same comments apply to the cluster of residual and the one outlier below the bound. 
+
+It appears that the two model produce more of less similar results. 
