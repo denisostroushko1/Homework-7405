@@ -170,15 +170,17 @@ it is `r cont_median_t` days for controls.
 ```{r}
 fit <- survfit(Surv(time, status) ~ type, data = final_data)
 plot <- 
-  ggsurvplot(fit, data = final_data) + 
+  ggsurvplot(fit, data = final_data, surv.median.line = "hv") + 
   ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
                 "days. \n   Controls Median Survival Time: ", cont_median_t, " days.")) 
 
-plot$plot + 
-  geom_vline(aes(xintercept = case_median_t, color = "Case median survival time"), 
-                  size = 1, linetype = "dashed") + 
-  geom_vline(aes(xintercept = cont_median_t, color = "Control median survival time"), 
-                  size = 1, linetype = "dashed")
+plot$plot
+
+# plot$plot + 
+#   geom_vline(aes(xintercept = case_median_t, color = "Case median survival time"), 
+#                   size = 1, linetype = "dashed") + 
+#   geom_vline(aes(xintercept = cont_median_t, color = "Control median survival time"), 
+#                   size = 1, linetype = "dashed")
 ```
 
 In appears that we have the phenomenon of crossing survival curves. That means that he hazards are not proportional, and 
@@ -186,7 +188,7 @@ if we are to analyze these curves and compare survival times we would need param
 shape parameters for the two groups. 
 
 Judging from the location of the median survival times, cases' survival time should be higher, "on average" by around 
-`r case_median_t - cont_median_t`days. 
+`r case_median_t - cont_median_t` days. 
 
 That means that the drug we are researching may be effective at extending survival time of patients. 
 However, as we noted, at some point survival curves cross. Which means that the drug must have some adverse effects on the 
@@ -208,7 +210,7 @@ summary(res.cox)$coefficient
 Exponentiated coefficient is `r round(summary(res.cox)$coefficient[2], 4)` meaning that the controls' instantaneous  hazard 
 at any time is `r paste((round(summary(res.cox)$coefficient[2], 4) -1)*100, "%") ` higher at any time, when compared with cases. 
 
-However, low Wald Z statistic, high standard error, and low p-value indicate that this difference is not statistically significant. 
+However, low Wald Z statistic, high standard error, and low p-value indicate that this difference is not statistically significant.
 
 We can also obtain fitted survival curves from the Cox Proportional Hazards Regression Model. 
 As we can see, the two curves are hard to distinguish. 
@@ -216,13 +218,7 @@ As we can see, the two curves are hard to distinguish.
 ```{r}
 ggadjustedcurves(res.cox, variable = 'type') + 
   ggtitle("Fitted Survival Curves")
-
 ```
-
-
-So, we have another method that concludes the results in section (2). 
-
-
 
 # 21.1
 
@@ -336,16 +332,11 @@ cont_median_t <- min(controls_f[controls_f$S < .5, ]$time)
 
 ```{r}
 fit <- survfit(Surv(time, status) ~ type, data = final_data)
-plot <- 
-  ggsurvplot(fit, data = final_data) + 
+
+ggsurvplot(fit, data = final_data, , surv.median.line = "hv") + 
   ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
                 "Weeks. \n   Placebo Median Survival Time: ", cont_median_t, " Weeks.")) 
 
-plot$plot + 
-  geom_vline(aes(xintercept = case_median_t, color = "Case median survival time"), 
-                  size = 1, linetype = "dashed") + 
-  geom_vline(aes(xintercept = cont_median_t, color = "Placebo median survival time"), 
-                  size = 1, linetype = "dashed")
 ```
 
 ### 21.1 - 2
@@ -353,11 +344,17 @@ plot$plot +
 Exponential model assumes that the survival probability at time $t$ is given by: $\large S(t) = exp(-\rho t)$
 
 ```{r}
-exp_fit <- survreg(Surv(time,status) ~ 1, data = final_data %>% filter(type == "cases"), dist = "exponential")
-rho = exp(-exp_fit$coefficients["(Intercept)"])
+fit_exp <- flexsurvreg(Surv(time, status) ~ 1, data = final_data %>% filter(type == "cases"), dist = "exp") 
+
+rho =fit_exp$res[1]
+ 
+rho_l =fit_exp$res[2]
+rho_u =fit_exp$res[3]
+
 ```
 
-parameter $\large \rho$ is estimated to be `r round(rho, 6)`
+parameter $\large \rho$ is estimated to be `r round(rho, 4)`, with a (`r round(rho_l,4)`, `r round(rho_u,4)`) 95% confidence interval. I suppose that the confidence interval is not equal with around the estimate because we to obtain the estimate 
+we use the process of exponentiation. 
 
 ```{r}
 cases_f_exp <- cases_f
@@ -367,7 +364,8 @@ cases_f_exp$S_exp <- exp( - rho * cases_f_exp$time)
 
 Table below presents estimated survival rates for cases in the 6-MP trial under the assumption that the survival times are 
 distributed exponentially. For comparison, we also keep the Kaplan-Meier estimates in the table. We also present the data 
-only for those times $t$ where we observe at least one event. 
+only for those times $t$ where we observe at least one event, so those time record where we have a record, but only censored 
+ones, are not in the table. This is specifically requested in the problem statements in the slides.  
 
 ```{r}
 cases_f_exp %>% select(time, events, S, S_exp) %>% 
@@ -379,7 +377,16 @@ cases_f_exp %>% select(time, events, S, S_exp) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 ```
 
+Overall, the two methods produce quite similar estimates, although probabilities from the survival fit appear to be more 
+optimistic. Especially as we get to the higher time records, exponential fit probabilities overstate expected survival chance 
+quite notably. 
+
 ### 21.1 - 3
+
+The plot below visualizes the two survival curves on the same plot. We can see that the two curves align quite well up until time
+$t \approx$ 22, where the biggest differences start to occur. The difference occurs because the because KM is fitted to 
+our particular sample, while exponential method is not. Overall, either method might not be well suited for prediction of survial 
+time or extrapolation of any sort. 
 
 ```{r}
 plot_data <- 
@@ -405,7 +412,10 @@ ggplot(data = plot_data,
 
 ```
 
-There are multiple exponential estimates of probabilities for a single value of K-M estimate. 
+The plot below visualizes the relationship between the two sets of survival probabilities. As the problem asks in section (2), 
+we remove those time points where no events, and only censoring, occurs. We only have 7 or so data points for this plot, but 
+the two sets of probabilities are almost perfectly correlated. Either can be used for estimation of survival time for this sample 
+up until time point of 25 weeks or so. 
 
 ```{R}
 cases_f_exp_e <- cases_f_exp %>% filter(events > 0)
@@ -426,7 +436,12 @@ ggplot(data = cases_f_exp_e,
   theme_minimal()
 
 ```
+
+\newpage
+
 ### 21.1 - 4
+
+In order to fit the Weibull time-to-event model we will estimate two parameters. 
 
 ```{r}
 
@@ -437,16 +452,24 @@ lambda_scale <- fit_weib$coefficients[2]
 
 ```
 
+```{r eval = F, echo = F}
+rho_shape
+lambda_scale
+```
+
 Two parameters: scale - location parameter - $\large \lambda$ = `r round(lambda_scale, 4)`
 
 shape - $\large \rho$ = `r round(rho_shape, 4)`
 
 Survival rate = $S(t) = exp(- (\lambda * t)^\rho)$
 
+We can now use weibull survival model to estimate survival probabilities. As we can see, weibull model is a poor method for 
+our sample. 
+
 ```{R}
 
 cases_f_weib <- cases_f_exp
-cases_f_weib$S_w <- exp( - (cases_f_weib$time/lambda_scale)^rho_shape)
+cases_f_weib$S_w <- exp( - (cases_f_weib$time / lambda_scale)^rho_shape)
 
 plot_data <- 
   cases_f_weib %>% 
@@ -471,15 +494,11 @@ ggplot(data = plot_data,
   ylab("Survival Rates Estiamtes") 
 
 ```
-```{r}
-
-ggplot(data = cases_f_weib, 
-        aes(x = log(time), 
-            y = log(-log(S_w)))) + geom_point()
-
-```
 
 ### 21.1 - 5
+
+Again, for correlation plot, we only keep those time point where no events and only censoring occurred. The two sets of probabilities
+are highly correlated, however, Weibull tends to severely underestimate the survival probability at any given point in time. 
 
 ```{R}
 
