@@ -1,0 +1,504 @@
+---
+title: "Homework 10"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+# 20.2
+
+```{r}
+
+censored_case = 
+  c(0,0,1,1,0,0,0 ,0 ,0,0,0,0,0,0,0,0,0,0,0,1,0,0
+)
+
+time_case = 
+  c(30,67,79,82,95,148,170 ,171 ,176,193,200,221,243,261,262,263,399,414,446,446,464,777 
+)
+
+time_control = 
+  c(57,58,74,79,89,98,101,104,110,118,125, 132, 154, 159,188, 203, 257, 257, 431, 461, 497, 723, 747,1313,2636
+)
+
+censored_control <- rep(0, length(time_control))
+
+final_data <- 
+  rbind(
+    data.frame(
+      time = time_case, 
+      censored = censored_case, 
+      type = "case"
+    ), 
+    data.frame(
+      time = time_control, 
+      censored = censored_control, 
+      type = "control"
+    )
+  )
+
+final_data$status <- 1 - final_data$censored 
+```
+
+### 20.2 - 1
+
+In this section we derive KM survival estimates for each treatment arm and present them in the table. Each table will have 
+all detail that goes into the KM estimates: subjects at risk, number of events at time point $i$, instantaneous hazard, and 
+survival probability estimate. 
+
+This list describes each column of the final table that, and provides formulas to be used in calculations: 
+
+1. Number of subjects at risk is the number of remaining subjects at time $i$ who were not censored or did not have an event, 
+denote this quantity as $n_i$
+
+2. Number of events will occurring at time $i$ will be used for calculation of hazard, denote as $d_i$
+
+3. Hazard at time $i$ is $\large \lambda_i = \frac{d_i}{n_i}$. We need $\large 1 - \lambda_i$ as the instantaneous probability 
+  to survive
+
+4. Survival Probability at time $i$ depends on the time period: 
+  + if it is the first available time period, then $\large S(1) = 1 - \lambda_1$
+  + Otherwise, $\large S(i) = (1 -\lambda_i) \times S(i-1)$
+
+```{r}
+
+cases <- final_data %>% filter(type == "case")
+
+cases %>% 
+  group_by(time) %>% 
+  summarize(n = n(), 
+            events = sum(1-censored)) %>% 
+  arrange(-time) %>% 
+  mutate(n_i = cumsum(n)) %>% 
+  arrange(time) %>% 
+  mutate(inst = 1-events/n_i) -> cases_f
+
+cases_f$S <- cases_f$inst
+
+for(i in 2:nrow(cases_f)){
+  cases_f$S[i] <- cases_f$inst[i] * cases_f$S[i-1]
+}
+ 
+cases_f <- cases_f %>% select(time, n_i, events, inst, S)
+```
+
+Clearly, in the case of the first time interval recorded in our data at time = `r min(cases$time)` we set survival probability equal to the instantaneous probability of surviving. Technically, we can express it as
+a conditional probability, where survival probability before the start of observation is set to 1. Noone simply experienced the 
+event yet, so everybody "survived" to that point. 
+
+At time = `r min(cases[cases$time != min(cases$time),]$time)`, survival probability is 
+now truly a conditional probability, expressed as $\large S_1 \times (1-\lambda_2)$, which is 
+`r round(cases_f[1, ]$S, 4)` $\times$ 
+`r round(cases_f[2, ]$inst, 4)`
+
+Full Table is given below: 
+
+```{r}
+cases_f %>% 
+  kbl(booktabs = T, align = 'c', 
+      col.names = c("Time", "At Risk: n_i", "Events: d_i", "Instantaneous survival Probability: 1 - d_i/n_i", 
+                    "KM Survival Estimate"), 
+      caption = "Kaplan Meier Survival Estiamtes for 'RoRx+5-Fu' Case Group ") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  column_spec(4, width = "4cm")
+```
+
+We also replicate this method to provide a table for controls: 
+
+```{r}
+controls <- final_data %>% filter(type == "control")
+
+controls %>% 
+  group_by(time) %>% 
+  summarize(n = n(), 
+            events = sum(1-censored)) %>% 
+  arrange(-time) %>% 
+  mutate(n_i = cumsum(n)) %>% 
+  arrange(time) %>% 
+  mutate(inst = 1-events/n_i) -> controls_f
+
+controls_f$S <- controls_f$inst
+
+for(i in 2:nrow(controls_f)){
+  controls_f$S[i] <- controls_f$inst[i] * controls_f$S[i-1]
+}
+ 
+controls_f <- controls_f %>% select(time, n_i, events, inst, S)
+
+controls_f %>% 
+  kbl(booktabs = T, align = 'c', 
+      col.names = c("Time", "At Risk: n_i", "Events: d_i", "Instantaneous survival Probability: 1 - d_i/n_i", 
+                    "KM Survival Estimate"), 
+      caption = "Kaplan Meier Survival Estiamtes for Control Group ") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  column_spec(4, width = "4cm")
+```
+
+### 20.2 - 2
+
+In this section we put the data from two tables on the same graphs. We also add median survival time for both groups. 
+From slide #5 in Lecture file #21 it appears that the median time is defined as the time point when the value of survival function 
+$S(t)$ drop below 0.5 for the first time.  We can't just take the median of observed survival times due to cencoring and 
+income data that it imposes. 
+
+```{r}
+
+case_median_t <- min(cases_f[cases_f$S < .5, ]$time)
+cont_median_t <- min(controls_f[controls_f$S < .5, ]$time)
+
+```
+
+Thus, as we can see in the tables, median survival time for cases who are subject to treatment is `r case_median_t` days, while 
+it is `r cont_median_t` days for controls.
+
+```{r}
+fit <- survfit(Surv(time, status) ~ type, data = final_data)
+plot <- 
+  ggsurvplot(fit, data = final_data) + 
+  ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
+                "days. \n   Controls Median Survival Time: ", cont_median_t, " days.")) 
+
+plot$plot + 
+  geom_vline(aes(xintercept = case_median_t, color = "Case median survival time"), 
+                  size = 1, linetype = "dashed") + 
+  geom_vline(aes(xintercept = cont_median_t, color = "Control median survival time"), 
+                  size = 1, linetype = "dashed")
+```
+
+In appears that we have the phenomenon of crossing survival curves. That means that he hazards are not proportional, and 
+if we are to analyze these curves and compare survival times we would need parametric methods that can handle different scale and 
+shape parameters for the two groups. 
+
+Judging from the location of the median survival times, cases' survival time should be higher, "on average" by around 
+`r case_median_t - cont_median_t`days. 
+
+That means that the drug we are researching may be effective at extending survival time of patients. 
+However, as we noted, at some point survival curves cross. Which means that the drug must have some adverse effects on the 
+subjects after some prolonged period of time. 
+
+Alternatively, the drug potency may simply decrease over time and may no longer deter the unfavorable outcomes. 
+
+### 20.2 - 3
+
+Output of the Cox Proportional Hazard Model is given below: 
+
+```{r}
+res.cox <- coxph(Surv(time, status) ~ type, data = final_data)
+
+summary(res.cox)$coefficient
+
+```
+
+Exponentiated coefficient is `r round(summary(res.cox)$coefficient[2], 4)` meaning that the controls' instantaneous  hazard 
+at any time is `r paste((round(summary(res.cox)$coefficient[2], 4) -1)*100, "%") ` higher at any time, when compared with cases. 
+
+However, low Wald Z statistic, high standard error, and low p-value indicate that this difference is not statistically significant. 
+
+We can also obtain fitted survival curves from the Cox Proportional Hazards Regression Model. 
+As we can see, the two curves are hard to distinguish. 
+
+```{r}
+ggadjustedcurves(res.cox, variable = 'type') + 
+  ggtitle("Fitted Survival Curves")
+
+```
+
+
+So, we have another method that concludes the results in section (2). 
+
+
+
+# 21.1
+
+```{r}
+
+placebo_time <- c(
+  1,2,2,2,3,4,4,5,5,8,8,8,8,11,11,12,12,15,17, 22,23)
+
+placebo_censored <- rep(0, length(placebo_time))
+
+placebo_status <- 1- placebo_censored
+
+case_time <- c(
+  6,6,6,7,10,13,16,22,23,6,9,10,11,17,19,20,25,32,32,34,35)
+
+case_censored <- c(
+  0,0,0,0,0,0,  0, 0, 0, 1, 1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  1)
+
+case_status <- 1 - case_censored
+
+final_data <- 
+  rbind(
+    data.frame(
+      time = placebo_time, 
+      censored = placebo_censored, 
+      status = placebo_status, 
+      type = "placebo"
+    ),
+    data.frame(
+      time = case_time, 
+      censored = case_censored, 
+      status = case_status, 
+      type = "cases"
+    )
+  ) %>% 
+  arrange(type, time)
+
+```
+
+### 21.1 - 1
+
+Using the same methods we used in problem #20, we provide the two tables, one for each group, with KM survival estimates  at 
+each point in time. 
+
+```{r}
+controls <- final_data %>% filter(type == "placebo")
+
+controls %>% 
+  group_by(time) %>% 
+  summarize(n = n(), 
+            events = sum(1-censored)) %>% 
+  arrange(-time) %>% 
+  mutate(n_i = cumsum(n)) %>% 
+  arrange(time) %>% 
+  mutate(inst = 1-events/n_i) -> controls_f
+
+controls_f$S <- controls_f$inst
+
+for(i in 2:nrow(controls_f)){
+  controls_f$S[i] <- controls_f$inst[i] * controls_f$S[i-1]
+}
+ 
+controls_f <- controls_f %>% select(time, n_i, events, inst, S)
+
+controls_f %>% 
+  kbl(booktabs = T, align = 'c', 
+      col.names = c("Time", "At Risk: n_i", "Events: d_i", "Instantaneous survival Probability: 1 - d_i/n_i", 
+                    "KM Survival Estimate"), 
+      caption = "Kaplan Meier Survival Estiamtes for Placebo Group ") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  column_spec(4, width = "4cm")
+```
+
+```{r}
+cases <- final_data %>% filter(type == "cases")
+
+cases %>% 
+  group_by(time) %>% 
+  summarize(n = n(), 
+            events = sum(1-censored)) %>% 
+  arrange(-time) %>% 
+  mutate(n_i = cumsum(n)) %>% 
+  arrange(time) %>% 
+  mutate(inst = 1-events/n_i) -> cases_f
+
+cases_f$S <- cases_f$inst
+
+for(i in 2:nrow(cases_f)){
+  cases_f$S[i] <- cases_f$inst[i] * cases_f$S[i-1]
+}
+ 
+cases_f <- cases_f %>% select(time, n_i, events, inst, S)
+
+cases_f %>% 
+  kbl(booktabs = T, align = 'c', 
+      col.names = c("Time", "At Risk: n_i", "Events: d_i", "Instantaneous survival Probability: 1 - d_i/n_i", 
+                    "KM Survival Estimate"), 
+      caption = "Kaplan Meier Survival Estiamtes for 6-MP Cases Group ") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>% 
+  column_spec(4, width = "4cm")
+```
+
+We can also visualize the survival curves for the placebo and cases groups
+
+```{r}
+
+case_median_t <- min(cases_f[cases_f$S < .5, ]$time)
+cont_median_t <- min(controls_f[controls_f$S < .5, ]$time)
+
+```
+
+```{r}
+fit <- survfit(Surv(time, status) ~ type, data = final_data)
+plot <- 
+  ggsurvplot(fit, data = final_data) + 
+  ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
+                "Weeks. \n   Placebo Median Survival Time: ", cont_median_t, " Weeks.")) 
+
+plot$plot + 
+  geom_vline(aes(xintercept = case_median_t, color = "Case median survival time"), 
+                  size = 1, linetype = "dashed") + 
+  geom_vline(aes(xintercept = cont_median_t, color = "Placebo median survival time"), 
+                  size = 1, linetype = "dashed")
+```
+
+### 21.1 - 2
+
+Exponential model assumes that the survival probability at time $t$ is given by: $\large S(t) = exp(-\rho t)$
+
+```{r}
+exp_fit <- survreg(Surv(time,status) ~ 1, data = final_data %>% filter(type == "cases"), dist = "exponential")
+rho = exp(-exp_fit$coefficients["(Intercept)"])
+```
+
+parameter $\large \rho$ is estimated to be `r round(rho, 6)`
+
+```{r}
+cases_f_exp <- cases_f
+cases_f_exp$S_exp <- exp( - rho * cases_f_exp$time)
+
+```
+
+Table below presents estimated survival rates for cases in the 6-MP trial under the assumption that the survival times are 
+distributed exponentially. For comparison, we also keep the Kaplan-Meier estimates in the table. We also present the data 
+only for those times $t$ where we observe at least one event. 
+
+```{r}
+cases_f_exp %>% select(time, events, S, S_exp) %>% 
+  filter(events > 0) %>% 
+  kbl(caption = "KM and Expoenential Model Survival Rates for 6-MP Cases", 
+      align = 'c', 
+      booktabs = T, 
+      col.names = c("Time", "Number of Events", "KM Survival Rate", "Exponential Fit Survival Rate")) %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+### 21.1 - 3
+
+```{r}
+plot_data <- 
+  cases_f_exp %>% 
+  select(time, S, S_exp) %>%
+  pivot_longer(
+    cols = c("S", "S_exp"), 
+    names_to = "names", 
+    values_to = "values"
+  ) %>% 
+  mutate(names = case_when(
+    names == "S" ~ "KM Estimate", 
+    T ~ "Exponential Fit Estimate"
+  ))
+
+ggplot(data = plot_data, 
+       aes(x = time, y = values, group = names, color = names)) + 
+  geom_point() + geom_step() + 
+  theme_minimal() + 
+  
+  xlab("Time") + 
+  ylab("Survival Rates Estiamtes") 
+
+```
+
+There are multiple exponential estimates of probabilities for a single value of K-M estimate. 
+
+```{R}
+cases_f_exp_e <- cases_f_exp %>% filter(events > 0)
+
+ggplot(data = cases_f_exp_e, 
+       aes(x = S, y = S_exp)) + 
+  geom_point() + 
+  
+  geom_smooth(method = "lm", color = "red", se = T) + 
+  geom_smooth(color = "blue", se = F) + 
+  
+  xlab("K-M Survival Estiamte") + 
+  ylab("Exponential Fit Survival Estimate") + 
+  ggtitle(paste("Correlation between the two set of estimates: ", round(
+    cor(cases_f_exp_e$S, cases_f_exp_e$S_exp), 6))
+    )+ 
+  
+  theme_minimal()
+
+```
+### 21.1 - 4
+
+```{r}
+
+fit_weib <- flexsurvreg(Surv(time, status) ~ 1, data = final_data %>% filter(type == "cases"), dist = "weibull") 
+
+rho_shape <- fit_weib$coefficients[1]
+lambda_scale <- fit_weib$coefficients[2]
+
+```
+
+Two parameters: scale - location parameter - $\large \lambda$ = `r round(lambda_scale, 4)`
+
+shape - $\large \rho$ = `r round(rho_shape, 4)`
+
+Survival rate = $S(t) = exp(- (\lambda * t)^\rho)$
+
+```{R}
+
+cases_f_weib <- cases_f_exp
+cases_f_weib$S_w <- exp( - (cases_f_weib$time/lambda_scale)^rho_shape)
+
+plot_data <- 
+  cases_f_weib %>% 
+  select(time, S, S_exp, S_w) %>%
+  pivot_longer(
+    cols = c("S", "S_exp", S_w), 
+    names_to = "names", 
+    values_to = "values"
+  ) %>% 
+  mutate(names = case_when(
+    names == "S" ~ "KM Estimate", 
+    names == "S_w" ~ "Weibull Fit Estimate", 
+    T ~ "Exponential Fit Estimate"
+  ))
+
+ggplot(data = plot_data, 
+       aes(x = time, y = values, group = names, color = names)) + 
+  geom_point() + geom_step() + 
+  theme_minimal() + 
+  
+  xlab("Time") + 
+  ylab("Survival Rates Estiamtes") 
+
+```
+```{r}
+
+ggplot(data = cases_f_weib, 
+        aes(x = log(time), 
+            y = log(-log(S_w)))) + geom_point()
+
+```
+
+### 21.1 - 5
+
+```{R}
+
+cases_f_weib_e <- cases_f_weib %>% filter(events > 0)
+
+ggplot(data = cases_f_weib_e, 
+       aes(x = S, y = S_w)) + 
+  geom_point() + 
+  
+  geom_smooth(method = "lm", color = "red", se = T) + 
+  geom_smooth(color = "blue", se = F) + 
+  
+  xlab("K-M Survival Estiamte") + 
+  ylab("Weibull Fit Survival Estimate") + 
+  ggtitle(paste("Correlation between the two set of estimates: ", round(
+    cor(cases_f_weib_e$S, cases_f_weib_e$S_w), 6))
+    )+ 
+  
+  theme_minimal()
+
+```
+
