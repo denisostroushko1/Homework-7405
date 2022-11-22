@@ -155,7 +155,7 @@ controls_f %>%
 In this section we put the data from two tables on the same graphs. We also add median survival time for both groups. 
 From slide #5 in Lecture file #21 it appears that the median time is defined as the time point when the value of survival function 
 $S(t)$ drop below 0.5 for the first time.  We can't just take the median of observed survival times due to cencoring and 
-income data that it imposes. 
+incomplete data that it imposes. 
 
 ```{r}
 
@@ -353,7 +353,7 @@ rho_u =fit_exp$res[3]
 
 ```
 
-parameter $\large \rho$ is estimated to be `r round(rho, 4)`, with a (`r round(rho_l,4)`, `r round(rho_u,4)`) 95% confidence interval. I suppose that the confidence interval is not equal with around the estimate because we to obtain the estimate 
+parameter $\large \rho$ is estimated to be `r round(rho, 4)`, with a (`r round(rho_l,4)`, `r round(rho_u,4)`) 95% confidence interval. I suppose that the confidence interval is not equal width around the estimate because we to obtain the estimate 
 we use the process of exponentiation. 
 
 ```{r}
@@ -461,7 +461,7 @@ Two parameters: scale - location parameter - $\large \lambda$ = `r round(lambda_
 
 shape - $\large \rho$ = `r round(rho_shape, 4)`
 
-Survival rate = $S(t) = exp(- (\lambda * t)^\rho)$
+Survival rate = $S(t) = exp(- (t / \lambda )^\rho)$
 
 We can now use weibull survival model to estimate survival probabilities. As we can see, weibull model is a poor method for 
 our sample. 
