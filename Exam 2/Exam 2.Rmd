@@ -1,0 +1,348 @@
+---
+title: "Exam 2"
+author: "Denis Ostroushko"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["float"]
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+
+
+```{r, echo = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F, fig.pos = "!H", fig.height=4, fig.width=7, fig.align='center')
+options(scipen=999)
+```
+
+```{r load all packages from the master file , include=F}
+source('/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Package master list .R')
+```
+
+# Problem 1
+
+```{r}
+
+p1_data <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Exam 2/E-CIG-2-E-22.xlsx")
+
+p1_data$Z <- with(p1_data, ifelse(arm == 6, 1, 0))
+
+p1_data$X1 <- log(p1_data$NNAL_vt0_creat)
+p1_data$X2 <- log(p1_data$TNE_vt0_creat)
+
+p1_data_f <- p1_data %>% select(subj_id, Z, X1, X2, arm) %>% na.omit()
+
+# 
+```
+
+We begin this problem by summarizing the data available to us, and continue this summary into the **1 - A** Section. 
+The data set contains `r nrow(p1_data)` observations for `r length(unique(p1_data$subj_id))` participants in the study.
+
+One of the participants has a missing value of baseline NNAL measurement. This variable is important for our 
+analysis, therefore we will omit this observation. The final data set includes `r nrow(p1_data_f)` observations. 
+
+### 1 - A
+
+Problem 1-A asks us to fit a logistic regression model using two log-transformed baseline measurements. We are interested in evaluating how the two variables are balanced between the two experiment arms, arm 5 and arm 6. 
+
+```{r}
+p1_data_f %>% 
+  group_by(arm) %>% 
+  summarize(N = n(), 
+            
+            mean_nnal = mean(X1),
+            sd_nnal = sd(X1),
+            
+            mean_tne = mean(X2),
+            sd_tne = sd(X2)
+            ) %>% 
+  kable(
+    booktabs = T, 
+    col.names = c("Arm", "N", "Mean", "SD", "Mean", "SD"), 
+    align = c("l", rep('c', (length(p1_data_f)-1)))
+  ) %>% 
+  kable_styling(
+    latex_options = c("HOLD_position", "striped")
+  ) %>% 
+  
+  add_header_above(c(" " = 2, "Baseline Log NNAL" = 2, "Baseline Log TNE" = 2))
+
+```
+
+Table above provides mean and standard deviation for the two variables we want to use in the propensity score model. 
+We can see that the means of the baseline NNAL measurements appear to be visually different between the two groups,
+although, it with a high standard deviation difference may be due to the noise abd variation of the data. 
+
+Average TNE measurements appear to be quite similar for both treatment arms. 
+
+In order to investigate the difference in distribtuion of two variables further we refer to the histograms. 
+
+```{r}
+
+ggplot(data = p1_data_f, 
+       aes(x = X1)) + 
+  geom_histogram(data = p1_data_f %>% filter(Z == 1), aes(fill = "Arm 6"), color = "dark blue", alpha = .75) +
+  geom_histogram(data = p1_data_f %>% filter(Z == 0), aes(fill = "Arm 5"), color = "dark blue", alpha = .75) +
+
+  theme_minimal() + 
+  
+  ggtitle("Baseline Log NNAL Measurements \n Between Two Groups") + 
+  ylab("Count") + 
+  xlab("Log NNAL") 
+
+```
+It appears that the shape of two distributions is quite similar for the two treatment arms. There are quite more 
+observations with the log-NNAL measurements above 1.5 for treatment arm 6, which may be the reason as to why the mean
+of observations is higher for this group. We also have about twice the amount of observations in the treatment 
+group 6, so, perhaps, if we are able to observe 30 more people who can qualify to be in treatment arm 5, we 
+can observe more extreme values, and more values that would tend toward the center of the distribution, making
+the two distributions very similar. 
+
+
+```{r}
+
+ggplot(data = p1_data_f, 
+       aes(x = X2)) + 
+  geom_histogram(data = p1_data_f %>% filter(Z == 1), aes(fill = "Arm 6"), color = "dark blue", alpha = .75) +
+  geom_histogram(data = p1_data_f %>% filter(Z == 0), aes(fill = "Arm 5"), color = "dark blue", alpha = .75) +
+
+  theme_minimal() + 
+  
+  ggtitle("Baseline Log TNE Measurements \n Between Two Groups") + 
+  ylab("Count") + 
+  xlab("Log TNE")
+
+
+```
+The distributions of log-TNE values between the two groups appear quite different, but also have similar features. 
+We can see that the distribution have heavy tails on the left, with the 'center' of each distribution being on 
+the right side. Perhaps, this is caused by the logarithmic transformation. Overall, it is not easy to gauge 
+the similarity of two distributions here due to varying sample size and natural variations of these biomarkers. 
+
+We are now ready to fit the logistic regression model to obtain propensity scores for each subject. 
+
+**Fit the Model** 
+
+Model statement 
+
+```{r}
+
+p1_glm <- glm(Z ~ X1 + X2, data = p1_data_f, family = "binomial")
+
+p1_data_f$prop_score <- p1_glm$fitted.values
+
+```
+
+**Summary and plot by group**
+
+```{r}
+
+ggplot(data = p1_data_f, 
+       aes(x = prop_score)) + 
+  geom_histogram(data = p1_data_f %>% filter(Z == 1), aes(fill = "Arm 6"), alpha = .75) +
+  geom_histogram(data = p1_data_f %>% filter(Z == 0), aes(fill = "Arm 5"), alpha = .75) +
+
+  theme_minimal()
+
+```
+
+### 1 - B
+
+```{r}
+p1_data_f$Y <- with(p1_data_f, prop_score/(1-prop_score))
+```
+
+
+
+```{r}
+p1_data_f %>% 
+  group_by(arm) %>% 
+  summarise(N = n(), 
+            Mean = mean(Y), 
+            SD = sd(Y))
+  
+```
+
+Evaluate variances and outliers 
+
+```{r}
+
+ggplot(data = p1_data_f, 
+       aes(
+        x = arm, 
+        y = Y, 
+        group = arm)) + 
+  geom_boxplot() + 
+  geom_jitter() + 
+  theme_minimal()
+
+```
+
+F Test for variances - two tailed test at $\alpha$ = 0.05, 95% confidence level
+
+https://www.itl.nist.gov/div898/handbook/eda/section3/eda359.htm#:~:text=An%20F%2Dtest%20(Snedecor%20and,the%20variances%20are%20not%20equal.
+
+```{r}
+
+df_1 <- nrow(p1_data_f %>% filter(Z == 1)) - 1
+df_2 <- nrow(p1_data_f %>% filter(Z == 0)) - 1
+
+s_1 <- sd(p1_data_f[p1_data_f$Z == 1,]$Y)^2
+s_2 <- sd(p1_data_f[p1_data_f$Z == 0,]$Y)^2
+
+F_stat <- s_1 / s_2 # also a ratio that we infer from 
+
+ci_low <- F_stat * qf(p = 0.05/2, df1 = df_1, df2 = df_2)
+ci_upp <- F_stat * 1/ qf(p = 0.05/2, df1 = df_1, df2 = df_2) # for the upper bound we simply swap df2 and df1
+
+Cutoff_F <- qf(p = 1 - 0.05/2, df1 = df_1, df2 = df_2)
+
+P_val <- 1 - pf(F_stat, df1 = df_1, df2 = df_2)
+
+```
+
+No outliers, no stat. difference between groups in F tests --> conduct a T test 
+
+```{r}
+
+t_res <- t.test(x = p1_data_f[p1_data_f$Z == 1, ]$Y, 
+                y = p1_data_f[p1_data_f$Z == 0, ]$Y)
+
+mean1 <- mean(p1_data_f[p1_data_f$Z == 1, ]$Y)
+mean2 <- mean(p1_data_f[p1_data_f$Z == 0, ]$Y)
+  
+difference = mean1 - mean2
+
+t_res$conf.int[1]
+t_res$conf.int[2]
+
+t_res$statistic
+
+t_res$p.value
+
+
+```
+
+### 1 - C
+
+effect size 
+
+```{R}
+
+pooled_variance <- 
+  (df_1 * s_1 + df_2 * s_2) / (df_1 + df_2)
+
+effect_size <- 
+  difference / pooled_variance
+
+```
+
+Based on some literature review, many psychology and social science data analysis methods refer to this method as 
+Cohen's d. All sources I reviewed state that in practice effect sizes between 0.2 and 0.5 are considered as Medium 
+size. I will rely on a test instead because we have more accessible and straightforward way to get a confidence interval, without using a Delta Method and other method from statistical theory. 
+
+# Problem 2 
+
+```{r}
+p2_data <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Exam 2/BMT-Trial-Orig.xlsx")
+
+nrow(p2_data)
+
+length(which(is.na(p2_data$duration)))
+
+```
+
+
+Comment on outliers and describe the data set 
+
+### 2 - A
+
+```{r}
+fit <- survfit(Surv(duration, status) ~ Treatment, data = p2_data)
+plot <- 
+  ggsurvplot(fit, data = p2_data, surv.median.line = "hv") 
+  # ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
+  #               "days. \n   Controls Median Survival Time: ", cont_median_t, " days.")) 
+plot$plot
+```
+
+Add model statement here 
+
+```{r}
+
+surv_m1 <- coxph(Surv(duration, status) ~ Treatment, data = p2_data)
+
+res_reg <- data.frame(summary(surv_m1)$coefficients)
+
+res_reg$var <- rownames(res_reg)
+rownames(res_reg) <- NULL
+res_reg <- res_reg %>% select(var, everything())
+
+res_reg <-
+  res_reg %>% mutate_at(vars(coef, exp.coef., se.coef., z, `Pr...z..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg) <- c("Predictor", "Estiamte", "Exponentiated Estiamte", "Standard Error", "Z Value", "P value")
+res_reg %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```
+
+Interpret the absolute lack of difference between the two groups 
+
+### 2 - B 
+
+```{r}
+
+surv_m2 <- coxph(Surv(duration, status) ~ 
+                    GENDER + age + Treatment + Race  + `HLA-Match`, data = p2_data)
+
+res_reg2 <- data.frame(summary(surv_m2)$coefficients)
+
+res_reg2$var <- rownames(res_reg2)
+rownames(res_reg2) <- NULL
+res_reg2 <- res_reg2 %>% select(var, everything())
+
+res_reg2 <-
+  res_reg2 %>% mutate_at(vars(coef, exp.coef., se.coef., z, `Pr...z..`),
+                                 funs(round(., 6)
+                                      )
+                                 )
+
+colnames(res_reg2) <- c("Predictor", "Estiamte", "Exponentiated Estiamte", "Standard Error", "Z Value", "P value")
+
+res_reg2 %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+### 2 - C
+
+Make a table with model estimates from 
+
+```{r}
+
+part_c <- 
+  
+  cbind(
+  
+    data.frame(
+      Model = c("Full", "Treatment Only")
+    ), 
+    rbind(
+      res_reg2 %>% filter(Predictor == "Treatment"),
+      res_reg %>% filter(Predictor == "Treatment")
+    )
+  )
+
+part_c %>%
+  kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+
+```
