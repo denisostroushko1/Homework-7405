@@ -122,10 +122,13 @@ the right side. Perhaps, this is caused by the logarithmic transformation. Overa
 the similarity of two distributions here due to varying sample size and natural variations of these biomarkers. 
 
 We are now ready to fit the logistic regression model to obtain propensity scores for each subject. 
+Our response variable is Z, a binary, where $Z = 1$ if a study participant is in the treatment arm 6, and 0 otherwise.
 
-**Fit the Model** 
+Therefore, the model statement is: 
 
-Model statement 
+$$\Large ln \frac{P(Z = 1)}{1 - P(Z = 1)} = \hat \beta_0 + \hat \beta_1 * X_1 + \hat \beta_2 * X_2$$
+Where $X_1$ is a baseline measurement of NNAL on the natural logarithmic scale, and $X_2$ is a baseline measurement 
+of TNE on the natural logarithmic scale
 
 ```{r}
 
@@ -135,23 +138,54 @@ p1_data_f$prop_score <- p1_glm$fitted.values
 
 ```
 
-**Summary and plot by group**
+After fitting the model, we summarize obtained propensity scores for each experiment arm. 
+
+```{r}
+p1_data_f %>% 
+  group_by(arm) %>% 
+  summarize(N = n(), 
+            
+            mean_nnal = mean(prop_score),
+            sd_nnal = sd(prop_score)
+            ) %>% 
+  kable(
+    booktabs = T, 
+    col.names = c("Arm", "N", "Mean", "SD"), 
+    align = c("l", rep('c', (length(p1_data_f)-1)))
+  ) %>% 
+  kable_styling(
+    latex_options = c("HOLD_position", "striped")
+  ) %>% 
+  
+  add_header_above(c(" " = 2, "Propensity Score" = 2))
+
+```
+
+It appears that the two samples have mean and standard deviations that are quite similar. We can aso investigate the 
+shape of distributions for each treatment group. 
 
 ```{r}
 
 ggplot(data = p1_data_f, 
        aes(x = prop_score)) + 
-  geom_histogram(data = p1_data_f %>% filter(Z == 1), aes(fill = "Arm 6"), alpha = .75) +
-  geom_histogram(data = p1_data_f %>% filter(Z == 0), aes(fill = "Arm 5"), alpha = .75) +
+  geom_histogram(data = p1_data_f %>% filter(Z == 1), aes(fill = "Arm 6"), color = "dark blue", alpha = .75) +
+  geom_histogram(data = p1_data_f %>% filter(Z == 0), aes(fill = "Arm 5"), color = "dark blue", alpha = .75) +
 
-  theme_minimal()
+  theme_minimal() + 
+  
+  ggtitle("Baseline Log TNE Measurements \n Between Two Groups") + 
+  ylab("Count") + 
+  xlab("Log TNE")
 
 ```
 
 ### 1 - B
 
+Using propensity scores we calculate the odds of receiving the treatment for each experiment subject on the logarithmic 
+scale. We give the summary of these odds for each sample in the table below: 
+
 ```{r}
-p1_data_f$Y <- with(p1_data_f, prop_score/(1-prop_score))
+p1_data_f$Y <- log(with(p1_data_f, prop_score/(1-prop_score)))
 ```
 
 
@@ -159,30 +193,55 @@ p1_data_f$Y <- with(p1_data_f, prop_score/(1-prop_score))
 ```{r}
 p1_data_f %>% 
   group_by(arm) %>% 
-  summarise(N = n(), 
-            Mean = mean(Y), 
-            SD = sd(Y))
+  summarize(N = n(), 
+            
+            mean_nnal = mean(Y),
+            sd_nnal = sd(Y)
+            ) %>% 
+  kable(
+    booktabs = T, 
+    col.names = c("Arm", "N", "Mean", "SD"), 
+    align = c("l", rep('c', (length(p1_data_f)-1)))
+  ) %>% 
+  kable_styling(
+    latex_options = c("HOLD_position", "striped")
+  ) %>% 
+  
+  add_header_above(c(" " = 2, "Log-Odds" = 2))
   
 ```
 
-Evaluate variances and outliers 
+Because log-odds are a function of propensity scores, same conclusions apply here again. 
+
+We can compare the average $Y$ values using a $t$-test. Before doing so, we can do two checks: 
+
+1. Use box plots to make sure there are no influential outliers. In case there are many influential outliers, 
+  we can pivot to a non-parametric Wilcoxon test. However, I suspect that we will not observe many influential 
+  outliers on the histograms above
+  
+2. Compare the variances of the two samples using an $F-$test. We will statistically test if the ratio of variances 
+  is greatly different from 1. In case the ratios are statistically different we can pivot to the Wilcoxon test as well.
+
+Boxplot below shows no visual evidence of greatly influential outliers. 
 
 ```{r}
 
 ggplot(data = p1_data_f, 
        aes(
-        x = arm, 
+        x = as.factor(arm), 
         y = Y, 
         group = arm)) + 
   geom_boxplot() + 
   geom_jitter() + 
-  theme_minimal()
+  theme_minimal() +
+  
+  ylab("Treatment Odds")+
+  xlab("Experiment Arm") 
 
 ```
 
-F Test for variances - two tailed test at $\alpha$ = 0.05, 95% confidence level
-
-https://www.itl.nist.gov/div898/handbook/eda/section3/eda359.htm#:~:text=An%20F%2Dtest%20(Snedecor%20and,the%20variances%20are%20not%20equal.
+We can now carry out an F test to check the difference between variances of treatment odds between the two groups. 
+We perform the test on the $\alpha$ = 0.05 significance level. 
 
 ```{r}
 
@@ -203,7 +262,28 @@ P_val <- 1 - pf(F_stat, df1 = df_1, df2 = df_2)
 
 ```
 
-No outliers, no stat. difference between groups in F tests --> conduct a T test 
+Formal statement for $F-$test on the $\alpha=$ 0.05 level is below: 
+
+*   Variance of treatment arm 5 is $\large s^2_1 =$ `r round(s_2, 4)` and variance of treatment arm 6 is 
+    $\large s^2_2 =$ `r round(s_1, 4)`. The ratio $\large s^2_2 / s^2_1$ is `r round(F_stat, 4)`
+    
+*   Null Hypothesis: $\large H_0: s^2_1 = s^2_2$
+
+*   Alternative Hypothesis: $\large H_a: s^2_1 \neq s^2_2$
+
+*   Test statistic $F =$ `r round(F_stat, 4)` 
+
+*   Critical cutoff $F-$value on `r df_1` and `r df_2` degrees of freedom is `r round(Cutoff_F, 4)`
+
+*   $P(F^* > F) =$ `r round(P_val, 4)`
+
+*   Conclusion: $F-$ statistic is smaller than the critical value, p-value is much bigger than the accepted 
+    cutoff 0.05, so there is not enough evidence to reject the null hypothesis and conclude that the the variances 
+    of two samples is not equal. 
+    
+So, we confirmed that the variances do not differ greatly using a statistical test and visually confirmed that there 
+are no influential outliers in the two samples. Therefore, we can conduct a $t-$ test to comapre the average
+treatment odds. 
 
 ```{r}
 
@@ -215,19 +295,48 @@ mean2 <- mean(p1_data_f[p1_data_f$Z == 0, ]$Y)
   
 difference = mean1 - mean2
 
-t_res$conf.int[1]
-t_res$conf.int[2]
-
-t_res$statistic
-
-t_res$p.value
-
-
 ```
+
+Formal statement for $t-$test at the $\alpha$ = 0.05 significance level is below: 
+
+*   Average log-odds for treatment arm 5 is $\bar X_1 =$ `r round(mean2, 4)`, average log-odds for treatment arm 6 is 
+    $\bar X_2 =$ `r round(mean1, 4)`, observed difference $\bar X_2 - \bar X_1$ is `r round(difference, 4)`
+    
+*   Null Hypothesis $H_0: \bar X_1 = \bar X_2$
+
+*   Alternative Hypothesis $H_a: \bar X_1 \neq \bar X_2$
+
+*   Test $T-$ statistics is `r round(t_res$statistic, 4)` 
+
+*   $P(T^* > T) =$ `r round(t_res$p.value,4)`
+
+*   Conclusion: $T-$ statistics is smaller than the critical cutoff, so we can not reject the Null Hypothesis
+    and conclude that the treatment log-odds are different between the two groups. However, p-value is only about 2.5
+    times greater than the accepted significance level, so these results can be suggestive that $\bar X_2$ is 
+    greater. We should not disregard these results easily. 
+    
+    This is also supported by the confidence interval for the difference estimate, which contains 
+    mostly positive values. C.I. is given by (`r round(t_res$conf.int[1], 4)`, `r round(t_res$conf.int[2], 4)`). 
+    
+    
+
 
 ### 1 - C
 
-effect size 
+
+Based on some literature review, many psychology and social science data analysis methods refer to this method as 
+Cohen's d. All sources I reviewed state that in practice effect sizes between 0.2 and 0.5 are considered as Medium 
+size. 
+
+A good explanation is given here: 
+https://datatab.net/tutorial/effect-size-independent-t-test
+
+We calculate the effect size as the difference divided by the pooled variance, where pooled variance is given by: 
+
+$$\Large s^2_p = \frac{(n_1 - 1) * s^2_1 + (n_2 - 1) * s^2_2}{n_2 + n_1 - 2}$$
+And effect size is given by: 
+
+$$\Large E.S. = \frac{\bar X_2 - \bar X_1}{\sqrt{S^2_p}}$$
 
 ```{R}
 
@@ -235,13 +344,22 @@ pooled_variance <-
   (df_1 * s_1 + df_2 * s_2) / (df_1 + df_2)
 
 effect_size <- 
-  difference / pooled_variance
+  difference / sqrt(pooled_variance)
 
 ```
 
-Based on some literature review, many psychology and social science data analysis methods refer to this method as 
-Cohen's d. All sources I reviewed state that in practice effect sizes between 0.2 and 0.5 are considered as Medium 
-size. I will rely on a test instead because we have more accessible and straightforward way to get a confidence interval, without using a Delta Method and other method from statistical theory. 
+I will rely on a test instead because we have more accessible and straightforward way to get a confidence interval, that is 
+widely known and accepted among the research community. 
+
+However, effect size is also a good method that gives us an intuitive tool for inference. We took the ratio of a difference 
+to the common, or pooled, standard deviation. With our estimate of `r round(effect_size,4)`, we have a moderate effect size. 
+Also, difference between samples is approximately `r 100*round(effect_size,2)`% of the common standard deviation. So, the effect is 
+, perhaps, "hidden" due to great variance in the sample, or it is "diluted" due to the variance that occurs in the sample. 
+
+Another interpretation is that the difference between the two groups is small when compared to the average, or pooled, variance 
+in the sample. There is too much variance to make conclusive statements. 
+
+\newpage 
 
 # Problem 2 
 
