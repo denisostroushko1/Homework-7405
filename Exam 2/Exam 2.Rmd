@@ -73,11 +73,11 @@ p1_data_f %>%
 
 Table above provides mean and standard deviation for the two variables we want to use in the propensity score model. 
 We can see that the means of the baseline NNAL measurements appear to be visually different between the two groups,
-although, it with a high standard deviation difference may be due to the noise abd variation of the data. 
+although, with a high standard deviation difference may be due to the noise and variation of the data. 
 
 Average TNE measurements appear to be quite similar for both treatment arms. 
 
-In order to investigate the difference in distribtuion of two variables further we refer to the histograms. 
+In order to investigate the difference in distribution of two variables further we refer to the histograms. 
 
 ```{r}
 
@@ -93,13 +93,13 @@ ggplot(data = p1_data_f,
   xlab("Log NNAL") 
 
 ```
+
 It appears that the shape of two distributions is quite similar for the two treatment arms. There are quite more 
 observations with the log-NNAL measurements above 1.5 for treatment arm 6, which may be the reason as to why the mean
 of observations is higher for this group. We also have about twice the amount of observations in the treatment 
 group 6, so, perhaps, if we are able to observe 30 more people who can qualify to be in treatment arm 5, we 
 can observe more extreme values, and more values that would tend toward the center of the distribution, making
 the two distributions very similar. 
-
 
 ```{r}
 
@@ -116,13 +116,15 @@ ggplot(data = p1_data_f,
 
 
 ```
+
 The distributions of log-TNE values between the two groups appear quite different, but also have similar features. 
 We can see that the distribution have heavy tails on the left, with the 'center' of each distribution being on 
 the right side. Perhaps, this is caused by the logarithmic transformation. Overall, it is not easy to gauge 
 the similarity of two distributions here due to varying sample size and natural variations of these biomarkers. 
 
 We are now ready to fit the logistic regression model to obtain propensity scores for each subject. 
-Our response variable is Z, a binary, where $Z = 1$ if a study participant is in the treatment arm 6, and 0 otherwise.
+Our response variable is Z, a binary, where $Z = 1$ if a study participant is in the treatment arm 6, and 0 if the participant is 
+in arm 5.
 
 Therefore, the model statement is: 
 
@@ -161,7 +163,7 @@ p1_data_f %>%
 
 ```
 
-It appears that the two samples have mean and standard deviations that are quite similar. We can aso investigate the 
+It appears that the two samples have mean and standard deviations that are quite similar. We can also investigate the 
 shape of distributions for each treatment group. 
 
 ```{r}
@@ -179,13 +181,15 @@ ggplot(data = p1_data_f,
 
 ```
 
+We have fairly balanced distributions of propensity scores for the two samples. 
+
 ### 1 - B
 
-Using propensity scores we calculate the odds of receiving the treatment for each experiment subject on the logarithmic 
+Using propensity scores we calculate the odds of being in the treatment arm 6 for each experiment subject on the logarithmic 
 scale. We give the summary of these odds for each sample in the table below: 
 
 ```{r}
-p1_data_f$Y <- log(with(p1_data_f, prop_score/(1-prop_score)))
+p1_data_f$Y <- with(p1_data_f, log(prop_score/(1-prop_score)))
 ```
 
 
@@ -211,7 +215,8 @@ p1_data_f %>%
   
 ```
 
-Because log-odds are a function of propensity scores, same conclusions apply here again. 
+Because log-odds are a function of propensity scores, same conclusions about the mean, standard deviations, and the 
+overall shape of the two distributions should apply here again. 
 
 We can compare the average $Y$ values using a $t$-test. Before doing so, we can do two checks: 
 
@@ -224,7 +229,7 @@ We can compare the average $Y$ values using a $t$-test. Before doing so, we can 
 
 Boxplot below shows no visual evidence of greatly influential outliers. 
 
-```{r}
+```{r, fig.height=4, fig.width=6}
 
 ggplot(data = p1_data_f, 
        aes(
@@ -235,8 +240,9 @@ ggplot(data = p1_data_f,
   geom_jitter() + 
   theme_minimal() +
   
-  ylab("Treatment Odds")+
-  xlab("Experiment Arm") 
+  ylab("Odds")+
+  xlab("Experiment Arm") + 
+  ggtitle("")
 
 ```
 
@@ -282,7 +288,7 @@ Formal statement for $F-$test on the $\alpha=$ 0.05 level is below:
     of two samples is not equal. 
     
 So, we confirmed that the variances do not differ greatly using a statistical test and visually confirmed that there 
-are no influential outliers in the two samples. Therefore, we can conduct a $t-$ test to comapre the average
+are no influential outliers in the two samples. Therefore, we can conduct a $t-$ test to compare the average
 treatment odds. 
 
 ```{r}
@@ -393,11 +399,11 @@ plot$plot
 ```
 
 Now we can fit a Cox Proportional Hazard Regression Model to compare survival likelihood between the two groups. 
-Model estiamte is given below: 
+Model estimate is given below: 
 
 ```{r}
 
-surv_m1 <- coxph(Surv(duration, status) ~ Treatment, data = p2_data)
+surv_m1 <- coxph(Surv(duration, status) ~ Treatment, data = p2_data_f)
 
 res_reg <- data.frame(summary(surv_m1)$coefficients)
 
@@ -417,6 +423,10 @@ res_reg %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
 c <- res_reg$`Exponentiated Estiamte`
+cr <- res_reg$Estiamte
+  
+crse <- res_reg$`Standard Error`
+
 ```
 
 *   We defined group who received Bone Marrow (BM) treatment as a reference level, 
@@ -434,13 +444,56 @@ c <- res_reg$`Exponentiated Estiamte`
 
 ### 2 - B 
 
+Before fitting the model we can summarize the data. 
+
+```{r}
+
+p2_data_f$GENDER_num <- ifelse(p2_data_f$GENDER == "1", 0, 1)
+p2_data_f$`HLA-Match-num` <- ifelse(p2_data_f$`HLA-Match` == "5", 0, 1)
+
+p2_data_f %>% 
+  group_by(TreatmentCells) %>% 
+  summarize(
+    N = n(), 
+    
+    median = median(duration), 
+    
+    p_female = paste0(100 * round(sum(GENDER_num)/n(), 4), "%"), 
+    
+    p_white_race = paste0(100 * round(sum(Race)/n(), 4), "%"), 
+    
+    p_hla_6 = paste0(100 * round(sum(`HLA-Match-num`)/n(), 4), "%"), 
+    
+    mean_age = round(mean(age),1)
+  ) %>% 
+  t() %>% 
+  data.frame() -> sum_d
+
+sum_d$var <- c("Treat", "N", "Median Survival Time", "% Female", "% White", "% HLA 6 Score", "Avg. Age")
+
+sum_d <- sum_d %>% select(var, everything())
+
+rownames(sum_d) <- NULL
+
+colnames(sum_d) <- c("Variable", "Bone Marrow", "Peripheral Blood Stem Cells")
+
+sum_d <- sum_d %>% filter(Variable != "Treat")
+
+sum_d %>% 
+  kbl(booktabs = T, align = c('l','c', 'c')) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+
+It appears that the two samples are pretty balanced in terms of all covariates. 
+
 We can how fit a Cox Proportional Hazard Regression Model with all predictors. 
 A summary table with model estimates is given below: 
 
 ```{r}
 
 surv_m2 <- coxph(Surv(duration, status) ~ 
-                    GENDER + age + Treatment + Race  + `HLA-Match`, data = p2_data)
+                    Treatment + GENDER + age+ Race  + `HLA-Match`, data = p2_data_f)
 
 res_reg2 <- data.frame(summary(surv_m2)$coefficients)
 
@@ -524,12 +577,102 @@ part_c %>%
 
 ```
 
-*   The two estimates are not the same, they do not have the same p-value and standard errors. However, they are also not 
+*   The two estimates are not the same, and they do not have the same p-value. However, they are also not 
     drastically different and do not tell a different story. 
 
-*   It is interesting to observe that the coefficient actually increased in magnitede after the addition of extra 
-    predictors into the model. 
-    
-*   
+*   It is interesting to observe that the coefficient actually increased in magnitude after the addition of extra 
+    predictors into the model. Additionally, it is quite interesting to see that the standard error estimate remains very similar 
+    in the two models.
+
+We use iterative process to add more variables into the model, one by one, to see what variables impact the change in coefficient 
+of the treatment variable 
+
+
+```{r}
+
+list_other_predictors <- c('GENDER', 'age', 'Race', '`HLA-Match`')
+
+res <- data.frame(
+    iter = seq(from = 1, to = (length(c('GENDER', 'age', 'Race', '`HLA-Match`')) + 1), by = 1), 
+    recent_added = "Treatment", 
+    coef = cr,
+    se = crse
+  )
+
+for(i in 1:length(list_other_predictors)){
+  
+  formula <- 
+    as.formula(
+      paste(
+        "Surv(duration, status) ~ Treatment + ", 
+        paste(list_other_predictors[1:i], collapse = "+")
+      )
+    )
+  
+  iter_cox <- coxph(formula, data  = p2_data_f)
+  
+  res$recent_added[(i+1)] <- list_other_predictors[i]
+  res$coef[(i+1)] <- coef(iter_cox)[1] # coefficient for treatment is always in the first spot 
+  res$iter[(i+1)] <- i+1
+  res$se[(i+1)] <- summary(iter_cox)$coefficients[1,3] # standard error for treatment is always in this cell 
+
+}
+
+ggplot(data = res, 
+           aes(
+             x = iter, 
+             y = coef)) + 
+      geom_point(size = 2, color = "blue") + 
+      geom_line(size = 1, color = "blue") + 
+      theme_minimal() + 
+      scale_x_continuous(breaks = res$iter, labels = res$recent_added) +
+      theme(axis.text.x = element_text(angle = 45)) + 
+  
+      ggtitle(
+        "Change of Coefficient for Treatment Variable  \n After the Addition of a Covariate"
+      ) + 
+      ylab("Coefficient") + 
+      xlab("Last Added Variable") 
+```
+
+**Conclusion**
+
+It appears that the largest hikes in coefficient for the treatment variable happen after the addition of Age and HLA-Match variables. These two are the only two statistically significant variables that help meaningfully explain variation in survival 
+times and likelihood. 
+Therefore, it is likely that by adjusting for variables that are statistically related to the target variable of interest, 
+we account for effects that are caused by Age and HLA-Match, and therefore the model highlights, 
+or isolates, the effect of PBSC vs BM treatment better. 
+
+In a similar fashion we can check how adding more variables into the model affects a standard error for the treatment variable.
+We saw that the model with just one treatment variable and the full model produced almost identical standard error. 
+
+```{r}
+ggplot(data = res, 
+           aes(
+             x = iter, 
+             y = se)) + 
+      geom_point(size = 2, color = "blue") + 
+      geom_line(size = 1, color = "blue") + 
+      theme_minimal() + 
+      scale_x_continuous(breaks = res$iter, labels = res$recent_added) +
+      theme(axis.text.x = element_text(angle = 45)) + 
+  
+      ggtitle(
+        "Change of Standard Error for Treatment Variable \n After the Addition of a Covariate"
+      ) + 
+      ylab("Standard Error") + 
+      xlab("Last Added Variable") 
+
+```
+
+```{r}
+text <- paste(part_c$`Standard Error`, collapse = " to ")
+```
+
+It is quite remarkable that the standard error does not change drastically. A change from `r text` is minimal for all practical 
+purposes and applications. This result verifies that treatment is not heavily correlated with the other predictors. 
+
+
+
 
 
