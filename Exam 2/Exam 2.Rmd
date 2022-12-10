@@ -366,19 +366,25 @@ in the sample. There is too much variance to make conclusive statements.
 ```{r}
 p2_data <- read_xlsx("/Users/denisostroushko/Desktop/UofM MS/MS Fall 2022/Puhb 7405/Data Sets/Exam 2/BMT-Trial-Orig.xlsx")
 
-nrow(p2_data)
-
-length(which(is.na(p2_data$duration)))
-
+p2_data_f <- na.omit(p2_data)
+  
 ```
 
-
-Comment on outliers and describe the data set 
+The data set for this problem contains `r nrow(p2_data)` observations. In the context of the survival analysis problem, we look 
+at the time to event, which is defined by the `duration` variable. There are `r length(which(is.na(p2_data$duration)))` 
+observations in the data set with the missing time to event measure, so they will be removed from the analysis. 
+Therefore, all survival models will be fit using a sample of `r nrow(p2_data_f)` study participants. 
 
 ### 2 - A
 
+Before obtaining the model estimate it is helpful to develop intuition using graphical methods. We can see that the two groups 
+have very similar fitted survival curves. Therefore, we should not expect to see a big estimate of hazard ratio. However, 
+we can see that the median survival time is quite larger for the Peripheral Blood Stem Cells (treatment 2) treatment group. 
+
+
 ```{r}
 fit <- survfit(Surv(duration, status) ~ Treatment, data = p2_data)
+
 plot <- 
   ggsurvplot(fit, data = p2_data, surv.median.line = "hv") 
   # ggtitle(paste("Kaplan Meier Survival Curves. \n   Cases Median Survival Time: ", case_median_t, 
@@ -386,7 +392,8 @@ plot <-
 plot$plot
 ```
 
-Add model statement here 
+Now we can fit a Cox Proportional Hazard Regression Model to compare survival likelihood between the two groups. 
+Model estiamte is given below: 
 
 ```{r}
 
@@ -408,11 +415,27 @@ colnames(res_reg) <- c("Predictor", "Estiamte", "Exponentiated Estiamte", "Stand
 res_reg %>%
   kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
+
+c <- res_reg$`Exponentiated Estiamte`
 ```
 
-Interpret the absolute lack of difference between the two groups 
+*   We defined group who received Bone Marrow (BM) treatment as a reference level, 
+    and a group who received Peripheral Blood Stem Cells (PBSC) treatment as a comparison group
+
+*   As we can see, exponentiated coefficient, a hazard ratio, is `r round(c, 4)`, which means that the PBSC treatment group 
+    has approximately `r (round(c, 4) - 1) * 100`% higher chance of having a leukemia related death at any point in time. 
+    
+*   High p-value indicates that this difference is not statistically significant, so we cannot reject null hypothesis. 
+    Therefore, PBSC treatment does not improve survival chances when compared to Bone Marrow treatment for the sample of 
+    leukemia patients. 
+    
+*   In addition, standard error is quite large in comparison to the coefficient, the coefficient itself is close to zero, 
+    therefore there is a high degree of uncertainty in the estimate. 
 
 ### 2 - B 
+
+We can how fit a Cox Proportional Hazard Regression Model with all predictors. 
+A summary table with model estimates is given below: 
 
 ```{r}
 
@@ -437,11 +460,47 @@ res_reg2 %>%
   kbl(booktabs = T, align = c('l','c', 'c', 'c', 'c', 'c')) %>%
   kable_styling(latex_options = c("striped", "HOLD_position"))
 
+a <- res_reg2[res_reg2$Predictor == "age", ]$`Exponentiated Estiamte`
+h <- res_reg2[res_reg2$Predictor == "`HLA-Match`", ]$`Exponentiated Estiamte`
+
 ```
+
+```{r}
+ci <- data.frame(exp(confint(surv_m2)))
+ci$var <- rownames(ci)
+
+a_l <- ci[ci$var == "age", ]$X2.5..
+
+a_u <- ci[ci$var == "age", ]$X97.5..
+
+```
+*   Age and HLA-Match are two statistically significant predictors of the survival chance for leukemia patients
+
+*   Exponentiated coefficient for Age is `r round(a, 4)` which means that one additional year of age multiplicatively increases 
+    the chance of dying at any point in time by `r round(a, 4)`, or by approximately `r 100*(round(a, 4) - 1)`% 
+
+    However, it makes more sense to assess age effects on a large time frame. For example, additional 10 years of age 
+    increase the chance of having a leukemia related death at point in time by `r 10 * 100*(round(a, 4) - 1)`%, after 
+    adjusting for the effects of other predictors 
+    
+    This estimate is bounded by the (`r 10*100*(round(a_l, 4) - 1)`%, `r 10*100*(round(a_u, 4) - 1)`%) 95% confidence interval. 
+    Due to exponentiation of the coefficient, confidence interval appears to be skewed to the right. 
+    
+*   HLA-Match has two possible values. Patients with score 5 are chosen as a reference level for this modeling exercise, 
+    while patients with score 6 were used as the comparison group. 
+    
+    Patients with HAL score 6 were have a hazard ratio of `r round(h, 4)`, which means that patients in this group had a much 
+    lower chance of dying. In fact, at any point in time, patients in group with score 6 had approximately 
+    `r 100*(round(h,4)-1)`% lower chance of dying, after adjusting for other predictors. 
+
+*   Looking at raw coefficients for these predictors, we can also have more confidence in these predictors because standard errors
+    are small in comparison with the coefficient magnitude and size. Of course, confidence intervals are constructed using these 
+    standard errors, but it is also nice to see this information in the table next to the model output. 
 
 ### 2 - C
 
-Make a table with model estimates from 
+Table below provides a side by side comparison of the Treatment coefficient from the two regression models. 
+Recall that the coefficient is given for the comparison of PBSC group to the BM group. 
 
 ```{r}
 
@@ -464,3 +523,13 @@ part_c %>%
 
 
 ```
+
+*   The two estimates are not the same, they do not have the same p-value and standard errors. However, they are also not 
+    drastically different and do not tell a different story. 
+
+*   It is interesting to observe that the coefficient actually increased in magnitede after the addition of extra 
+    predictors into the model. 
+    
+*   
+
+
