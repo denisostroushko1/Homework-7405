@@ -175,9 +175,9 @@ ggplot(data = p1_data_f,
 
   theme_minimal() + 
   
-  ggtitle("Baseline Log TNE Measurements \n Between Two Groups") + 
+  ggtitle("Obtained Propensity Scores \n Between Two Groups") + 
   ylab("Count") + 
-  xlab("Log TNE")
+  xlab("Propensity Score")
 
 ```
 
